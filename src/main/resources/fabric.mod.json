@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "vr-throwing-extensions",
+	"version": "${version}",
+	"name": "VR Throwing Extensions",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/vr-throwing-extensions/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"win.demistorm.VRThrowingExtensions"
+		],
+		"client": [
+			"win.demistorm.VRThrowingExtensionsClient"
+		]
+	},
+	"mixins": [
+		"vr-throwing-extensions.mixins.json",
+		{
+			"config": "vr-throwing-extensions.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.16.14",
+		"minecraft": "~1.21.5",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
