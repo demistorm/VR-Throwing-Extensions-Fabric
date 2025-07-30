@@ -1,11 +1,11 @@
 {
 	"schemaVersion": 1,
-	"id": "vr-throwing-extensions",
+	"id": "vr-throwing-extensions-fabric",
 	"version": "${version}",
 	"name": "VR Throwing Extensions",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "Allows VR players to physically throw weapons and items!",
 	"authors": [
-		"Me!"
+		"Halfstorm"
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
