@@ -1,7 +1,9 @@
 package win.demistorm;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
 import net.minecraft.util.ActionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +26,11 @@ public class VRThrowingExtensionsClient implements ClientModInitializer {
 
 		// Well you can see what this does, it's right under here
 		registerClientEvents();
+
+		/* renderer: let vanilla handle the model */
+		EntityRendererRegistry.register(
+				VRThrowingExtensions.THROWN_ITEM_TYPE,
+                FlyingItemEntityRenderer::new);
 	}
 
 	// Cancel block breaking when throwing is active

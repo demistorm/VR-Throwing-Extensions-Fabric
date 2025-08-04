@@ -28,6 +28,9 @@ public class ThrowHelper {
     private static final double speedThreshold = 0.10; // Min speed to allow throw
     private static final double throwVelocityThreshold = 0.07; // Min vel to allow throw
 
+    // Velocity multiplier for projectile launch strength
+    public static final double velocityMultiplier = 8.0; // Multiplies velocity sent for the throw
+
     // Vanilla block breaking canceling
     private static boolean cancelBreaking = false; // Break canceling defaults to off
 
@@ -74,7 +77,7 @@ public class ThrowHelper {
             // DEBUG
             System.out.println("[VR Throw] Hold trace started with item: " + heldItem);
 
-        // Attack/Destroy release logic
+            // Attack/Destroy release logic
         } else if (active && !attackPressed) {
             // Evaluate throw only if held long enough
             if (ticksHeld >= 5) { // Min required hold duration
@@ -90,18 +93,25 @@ public class ThrowHelper {
                         assert avgVelocity != null;
                         double velLength = avgVelocity.length();
 
+                        //  ... inside the existing `onTick` method – replace the block that
+//      currently sends only the velocity with the following:
+                        VRPose pose = VRAPI.instance().getVRPose(mc.player);
+                        assert pose != null;
+                        VRBodyPartData handDataNow = pose.getHand(Hand.MAIN_HAND);
+
                         if (velLength >= throwVelocityThreshold) {
-                            // DEBUG
-                            System.out.println("[VR Throw] Release. Distance=" + movedDistance + ", Speed=" + velLength + ", Vel=" + avgVelocity);
+                            // Apply velocity multiplier to make throws more powerful
+                            Vec3d multipliedVelocity = avgVelocity.multiply(velocityMultiplier);
 
-                            // Sends info to server
-                            ClientNetworkHelper.sendToServer(avgVelocity);
+                            // send pos + velocity
+                            ClientNetworkHelper.sendToServer(handDataNow.getPos(), multipliedVelocity);
 
-                            // DEBUG
-                            mc.player.sendMessage(Text.literal("[VR Throw] Threw with velocity = " + avgVelocity), false);
+                            mc.player.sendMessage(Text.literal(
+                                    "[VR Throw] originalV=" + avgVelocity + " multipliedV=" + multipliedVelocity + " p=" + handDataNow.getPos()), false);
 
-                            // Haptic feedback on throw
-                            VRClientAPI.instance().triggerHapticPulse(VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.2f);
+                            // haptics
+                            VRClientAPI.instance().triggerHapticPulse(
+                                    VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.2f);
                         } else {
                             // DEBUG
                             System.out.println("[VR Throw] Too slow. Velocity = " + velLength);
@@ -118,7 +128,7 @@ public class ThrowHelper {
 
             reset(); // Resets literals
 
-        // If the throw logic is active and attack/destroy is held
+            // If the throw logic is active and attack/destroy is held
         } else if (active && attackPressed) {
             // While holding - keep counting ticks (capped at 10)
             ticksHeld = Math.min(ticksHeld + 1, maxPoseHistoryTicks);
