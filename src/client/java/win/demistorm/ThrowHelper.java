@@ -34,8 +34,8 @@ public class ThrowHelper {
     private static final double minThrowDistance        = 0.08;
     private static final int    maxPoseHistoryTicks     = 6;
     private static final double speedThreshold          = 0.10;
-    private static final double throwVelocityThreshold  = 0.07;
-    public  static final double velocityMultiplier      = 8.0;
+    private static final double throwVelocityThreshold  = 0.06; // Changed from 0.07
+    public  static final double velocityMultiplier      = 6.0; // Changed from 8.0
 
     /* ------------------------------------------------------------------ */
     public static void init() {

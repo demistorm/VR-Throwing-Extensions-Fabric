@@ -82,15 +82,16 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
         float base   = getBaseAttackDamage(getStack());                 // +1 hand, + item bonus
         float damage = EnchantmentHelper.getDamage(
                 world, getStack(), target, src, base);       // adds Sharpness/Smite/…
+        float multipliedDamage = damage * (2F); // Multiplies damage to make up for weird baseAttackDamage
 
         // Debug logging for damage calculation
         VRThrowingExtensions.LOGGER.info("Thrown item damage calculation: Item={}, Base={}, Final={}, Target={}",
                 getStack().getItem().toString(),
                 base,
-                damage,
+                multipliedDamage,
                 target.getName().getString());
 
-        target.damage(world, src, damage);
+        target.damage(world, src, multipliedDamage);
 
         // tiny knock-back
         Vec3d push = getVelocity().normalize().multiply(0.5);
@@ -114,7 +115,7 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
     }
 
     /**
-     * Returns 1 + sum of the GENERIC_ATTACK_DAMAGE modifiers the stack
+     * Returns 1 + sum of the ATTACK_DAMAGE modifiers the stack
      * contributes for the MAIN_HAND slot (same maths vanilla uses).
      */
     private static float getBaseAttackDamage(ItemStack stack) {
