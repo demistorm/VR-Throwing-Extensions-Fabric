@@ -60,37 +60,40 @@ public final class NetworkHelper {
     }
 
     /* Server logic: turn packet into real entity */
-    private static void handleThrow(PlayerEntity player, ThrowPacket p) {
-
+    private static void handleThrow(PlayerEntity player, ThrowPacket packet) {
         if (player == null || !player.isAlive()) return;
 
-        ItemStack handStack = player.getMainHandStack();
-        if (handStack.isEmpty() || ModCompat.throwingDisabled(handStack)) return;
+        ItemStack heldStack = player.getMainHandStack();
+        if (heldStack.isEmpty() || ModCompat.throwingDisabled(heldStack)) return;
 
-        int amount = p.wholeStack() ? handStack.getCount() : 1;
+        // Create projectile with the correct stack size flag
+        GenericThrownItemEntity proj = new GenericThrownItemEntity(
+                player.getWorld(), player, heldStack, packet.wholeStack());
 
-        for (int i = 0; i < amount; i++) {
-            GenericThrownItemEntity proj =
-                    new GenericThrownItemEntity(player.getWorld(), player, handStack);
-            proj.setPosition(p.pos());
-            // a tiny ±5° random spread for stack-throws
-            Vec3d v = p.vel();
-            if (amount > 1) {
-                double spread = 0.1;
-                v = v.add(
-                        (player.getRandom().nextDouble() - 0.5) * spread,
-                        (player.getRandom().nextDouble() - 0.5) * spread,
-                        (player.getRandom().nextDouble() - 0.5) * spread);
-            }
-            proj.setVelocity(v);
-            player.getWorld().spawnEntity(proj);
+        proj.setPosition(packet.pos());
+
+        // Add spread only when throwing what represents multiple items
+        Vec3d velocity = packet.vel();
+        if (packet.wholeStack() && heldStack.getCount() > 1) {
+            double spread = 0.1;
+            velocity = velocity.add(
+                    (player.getRandom().nextDouble() - 0.5) * spread,
+                    (player.getRandom().nextDouble() - 0.5) * spread,
+                    (player.getRandom().nextDouble() - 0.5) * spread);
         }
+        proj.setVelocity(velocity);
 
-        /* remove items that were thrown */
-        if (amount == handStack.getCount()) {
+        player.getWorld().spawnEntity(proj);
+
+        // Deduct items from player's hand
+        if (packet.wholeStack()) {
             player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
         } else {
-            handStack.decrement(amount);
+            if (heldStack.getCount() > 1) {
+                heldStack.decrement(1);
+            } else {
+                player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+            }
         }
     }
 }

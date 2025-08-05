@@ -26,20 +26,23 @@ import net.minecraft.world.World;
  * and then drops the item.
  */
 public class GenericThrownItemEntity extends ThrownItemEntity {
+    private int stackSize = 1; // <-- added field
 
     /* ------------------------------------------------------------ */
     /* Constructors                                                 */
     /* ------------------------------------------------------------ */
 
-    public GenericThrownItemEntity(EntityType<? extends GenericThrownItemEntity> type,
-                                   World world) {
+    public GenericThrownItemEntity(EntityType<? extends GenericThrownItemEntity> type, World world) {
         super(type, world);
     }
 
-    public GenericThrownItemEntity(World world, LivingEntity owner, ItemStack carried) {
-        super(VRThrowingExtensions.THROWN_ITEM_TYPE, world);   // world first
+    public GenericThrownItemEntity(World world, LivingEntity owner, ItemStack carried, boolean isWholeStack) {
+        super(VRThrowingExtensions.THROWN_ITEM_TYPE, world);
         setOwner(owner);
-        setItem(carried.copyWithCount(1));                     // keep full NBT
+        setItem(carried.copyWithCount(1)); // Visual model is always 1 item
+
+        // Set stackSize based on whether this is a whole stack throw
+        this.stackSize = isWholeStack ? carried.getCount() : 1;
     }
 
     /* ------------------------------------------------------------ */
@@ -49,17 +52,17 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
     @Override
     protected void onCollision(HitResult hit) {
         if (!getWorld().isClient) {
-
             if (hit.getType() == HitResult.Type.ENTITY) {
                 onEntityHit((EntityHitResult) hit);
             }
 
-            // Drop the (slightly damaged) item afterward
+            // Drop the correct number of items
+            ItemStack dropStack = createDropStack();
+            dropStack.setCount(stackSize); // Set the actual count to drop
             getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
-                    getWorld(), getX(), getY(), getZ(), createDropStack()));
-
+                    getWorld(), getX(), getY(), getZ(), dropStack));
             discard();
-        } else {      // client: simple break-particles
+        } else {
             getWorld().addParticleClient(
                     new ItemStackParticleEffect(ParticleTypes.ITEM, getStack()),
                     getX(), getY(), getZ(), 0.0, 0.0, 0.0);
@@ -102,8 +105,10 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
     private ItemStack createDropStack() {
         ItemStack drop = getStack().copy();
         if (drop.isDamageable()) {
-            drop.setDamage(MathHelper.clamp(drop.getDamage() + 1,
-                    0, drop.getMaxDamage()));
+            int totalDamage = MathHelper.clamp(
+                    drop.getDamage() + stackSize, // Damage penalty per item represented
+                    0, drop.getMaxDamage());
+            drop.setDamage(totalDamage);
         }
         return drop;
     }
