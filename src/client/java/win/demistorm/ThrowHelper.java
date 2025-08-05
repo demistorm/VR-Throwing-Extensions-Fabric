@@ -103,17 +103,11 @@ public class ThrowHelper {
                             // Apply velocity multiplier to make throws more powerful
                             Vec3d multipliedVelocity = avgVelocity.multiply(velocityMultiplier);
 
-                            // Get hand rotation data
-                            float yaw = (float) handDataNow.getYaw();
-                            float pitch = (float) handDataNow.getPitch();
-                            float roll = (float) handDataNow.getRoll();
-
-                            // send pos + velocity + rotation
-                            ClientNetworkHelper.sendToServer(handDataNow.getPos(), multipliedVelocity, yaw, pitch, roll);
+                            // send pos + velocity
+                            ClientNetworkHelper.sendToServer(handDataNow.getPos(), multipliedVelocity);
 
                             mc.player.sendMessage(Text.literal(
-                                    "[VR Throw] originalV=" + avgVelocity + " multipliedV=" + multipliedVelocity +
-                                            " p=" + handDataNow.getPos() + " yaw=" + yaw + " pitch=" + pitch), false);
+                                    "[VR Throw] originalV=" + avgVelocity + " multipliedV=" + multipliedVelocity + " p=" + handDataNow.getPos()), false);
 
                             // haptics
                             VRClientAPI.instance().triggerHapticPulse(

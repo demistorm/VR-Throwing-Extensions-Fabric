@@ -26,16 +26,11 @@ import net.minecraft.world.World;
  * and then drops the item.
  */
 public class GenericThrownItemEntity extends ThrownItemEntity {
-    /* ------------------------------------------------------------ */
-    /* Rotation data                                                */
-    /* ------------------------------------------------------------ */
-    private float yaw = 0.0f;
-    private float pitch = 0.0f;
-    private float roll = 0.0f;
 
     /* ------------------------------------------------------------ */
     /* Constructors                                                 */
     /* ------------------------------------------------------------ */
+
     public GenericThrownItemEntity(EntityType<? extends GenericThrownItemEntity> type,
                                    World world) {
         super(type, world);
@@ -48,30 +43,21 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
     }
 
     /* ------------------------------------------------------------ */
-    /* Rotation methods                                             */
-    /* ------------------------------------------------------------ */
-    public void setRotation(float yaw, float pitch, float roll) {
-        this.yaw = yaw;
-        this.pitch = pitch;
-        this.roll = roll;
-    }
-
-    public float getYaw() { return yaw; }
-    public float getPitch() { return pitch; }
-    public float getRoll() { return roll; }
-
-    /* ------------------------------------------------------------ */
     /* Collision handling                                           */
     /* ------------------------------------------------------------ */
+
     @Override
     protected void onCollision(HitResult hit) {
         if (!getWorld().isClient) {
+
             if (hit.getType() == HitResult.Type.ENTITY) {
                 onEntityHit((EntityHitResult) hit);
             }
+
             // Drop the (slightly damaged) item afterward
             getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
                     getWorld(), getX(), getY(), getZ(), createDropStack()));
+
             discard();
         } else {      // client: simple break-particles
             getWorld().addParticleClient(
@@ -84,20 +70,25 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
     protected void onEntityHit(EntityHitResult res) {
         Entity target     = res.getEntity();
         ServerWorld world = (ServerWorld) getWorld();
+
         DamageSources sources = world.getDamageSources();
         DamageSource  src     = sources.thrown(this,
                 getOwner() == null ? this : getOwner());
+
         /* ------------- full vanilla-accurate damage ------------------ */
         float base   = getBaseAttackDamage(getStack());                 // +1 hand, + item bonus
         float damage = EnchantmentHelper.getDamage(
                 world, getStack(), target, src, base);       // adds Sharpness/Smite/…
+
         // Debug logging for damage calculation
         VRThrowingExtensions.LOGGER.info("Thrown item damage calculation: Item={}, Base={}, Final={}, Target={}",
                 getStack().getItem().toString(),
                 base,
                 damage,
                 target.getName().getString());
+
         target.damage(world, src, damage);
+
         // tiny knock-back
         Vec3d push = getVelocity().normalize().multiply(0.5);
         target.addVelocity(push.x, 0.1 + push.y, push.z);
@@ -106,6 +97,7 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
     /* ------------------------------------------------------------ */
     /* Helpers                                                      */
     /* ------------------------------------------------------------ */
+
     /** Copy + add 1 durability damage (if the item is damageable). */
     private ItemStack createDropStack() {
         ItemStack drop = getStack().copy();
@@ -122,6 +114,7 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
      */
     private static float getBaseAttackDamage(ItemStack stack) {
         final float[] bonus = {0};
+
         EnchantmentHelper.applyAttributeModifiers(
                 stack, EquipmentSlot.MAINHAND,
                 (attrEntry, modifier) -> {
@@ -131,10 +124,12 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
                         bonus[0] += (float) modifier.value();
                     }
                 });
+
         return 1.0F + bonus[0];   // bare-hand 1 ♥  + item bonus
     }
 
     /* ------------------------------------------------------------ */
+
     @Override
     protected Item getDefaultItem() {
         return net.minecraft.item.Items.STICK;   // any non-empty placeholder item

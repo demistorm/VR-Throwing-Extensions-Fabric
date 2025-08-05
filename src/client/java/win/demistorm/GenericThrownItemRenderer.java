@@ -12,8 +12,10 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
 public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemEntity, GenericThrownItemRenderer.GenericThrownItemRenderState> {
@@ -40,9 +42,6 @@ public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemE
         state.itemStack = entity.getStack();
         state.velocity = entity.getVelocity();
         state.age = entity.age + tickDelta;
-        state.yaw = entity.getYaw();
-        state.pitch = entity.getPitch();
-        state.roll = entity.getRoll();
     }
 
     @Override
@@ -53,23 +52,28 @@ public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemE
 
         matrices.push();
 
-        /* --- 1. Use actual hand rotation instead of calculating from velocity --- */
-        // Apply the stored rotation from when the item was thrown
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(state.yaw));
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(state.pitch));
-        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(state.roll));
+        /* --- 1. point into travel direction -------------------------------- */
+        Vec3d vel      = state.velocity;
+        float yaw      = (float)(MathHelper.atan2(vel.x, vel.z) * 180.0 / Math.PI);
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - yaw));
 
-        /* --- 2. Keep the spin for natural rotation -------------------------------- */
-        float spin = (state.age * 12.0F) % 360F;
+        /* optional pitch ----------------------------------------------------- */
+        float hor      = MathHelper.sqrt((float)(vel.x * vel.x + vel.z * vel.z));
+        float pitch    = (float)(MathHelper.atan2(vel.y, hor) * 180.0 / Math.PI);
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-pitch));
+
+        /* --- 2. flip-spin --------------------------------------------------- */
+        float spin = (state.age * 12.0F // Flip speed
+            ) % 360F;
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(spin));
 
-        /* --- 3. scale ------------------------------------------------------------- */
+        /* --- 3. scale ------------------------------------------------------- */
         matrices.scale(scale, scale, scale);
 
-        /* --- 4. render the model -------------------------------------------------- */
+        /* --- 4. render the model – NO display transform --------------------- */
         itemRenderer.renderItem(
                 state.itemStack,
-                ItemDisplayContext.FIRST_PERSON_RIGHT_HAND,
+                ItemDisplayContext.FIRST_PERSON_RIGHT_HAND,      // <── here
                 light,
                 OverlayTexture.DEFAULT_UV,
                 matrices,
@@ -86,8 +90,5 @@ public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemE
         public ItemStack itemStack = ItemStack.EMPTY;
         public Vec3d velocity = Vec3d.ZERO;
         public float age = 0.0f;
-        public float yaw = 0.0f;
-        public float pitch = 0.0f;
-        public float roll = 0.0f;
     }
 }

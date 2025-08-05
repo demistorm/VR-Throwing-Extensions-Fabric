@@ -11,8 +11,8 @@ public final class ClientNetworkHelper {
 
     public static void initClient() { /* nothing yet */ }
 
-    public static void sendToServer(Vec3d pos, Vec3d velocity, float yaw, float pitch, float roll) {
-        System.out.println("ClientNetworkHelper: Sending throw with rotation. pos=" + pos + " vel=" + velocity + " yaw=" + yaw + " pitch=" + pitch + " roll=" + roll);
-        ClientPlayNetworking.send(new NetworkHelper.ThrowPacket(pos, velocity, yaw, pitch, roll));
+    public static void sendToServer(Vec3d pos, Vec3d velocity) {
+        System.out.println("ClientNetworkHelper: Sending throw. pos=" + pos + " vel=" + velocity);
+        ClientPlayNetworking.send(new NetworkHelper.ThrowPacket(pos, velocity));
     }
 }

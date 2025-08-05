@@ -18,8 +18,9 @@ public final class NetworkHelper {
             Identifier.of("vr-throwing-extensions", "throw_packet");
 
     /* --------------------------------------------------------------------- */
-    public record ThrowPacket(Vec3d pos, Vec3d vel, float yaw, float pitch, float roll) implements CustomPayload {
+    public record ThrowPacket(Vec3d pos, Vec3d vel) implements CustomPayload {
         public static final Id<ThrowPacket> ID = new Id<>(CHANNEL);
+
         public static final PacketCodec<RegistryByteBuf, ThrowPacket> CODEC =
                 PacketCodec.of(
                         (value, buf) -> {          // WRITE
@@ -29,17 +30,12 @@ public final class NetworkHelper {
                             buf.writeDouble(value.vel.x);
                             buf.writeDouble(value.vel.y);
                             buf.writeDouble(value.vel.z);
-                            buf.writeFloat(value.yaw);
-                            buf.writeFloat(value.pitch);
-                            buf.writeFloat(value.roll);
                         },
                         (buf) -> new ThrowPacket(  // READ
                                 new Vec3d(buf.readDouble(), buf.readDouble(), buf.readDouble()),
-                                new Vec3d(buf.readDouble(), buf.readDouble(), buf.readDouble()),
-                                buf.readFloat(),
-                                buf.readFloat(),
-                                buf.readFloat())
+                                new Vec3d(buf.readDouble(), buf.readDouble(), buf.readDouble()))
                 );
+
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
     /* --------------------------------------------------------------------- */
@@ -61,19 +57,23 @@ public final class NetworkHelper {
     private static void handleThrow(PlayerEntity player, ThrowPacket packet) {
         // Sanity checks
         if (player == null || !player.isAlive()) return;
+
         // What item are we throwing?
         var stackInHand = player.getMainHandStack();
         if (stackInHand.isEmpty() || ModCompat.throwingDisabled(stackInHand)) return;
+
         // Create projectile
         var proj = new GenericThrownItemEntity(player.getWorld(), player, stackInHand);
+
         // Position = exact hand position sent by client
         proj.setPosition(packet.pos());
+
         // Velocity from packet
         proj.setVelocity(packet.vel());
-        // Rotation from packet
-        proj.setRotation(packet.yaw(), packet.pitch(), packet.roll());
+
         // Spawn into world
         player.getWorld().spawnEntity(proj);
+
         // remove ONE item / or entire tool if non-stackable
         if (stackInHand.getCount() > 1) {
             stackInHand.decrement(1);
