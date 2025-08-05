@@ -33,7 +33,7 @@ public class VRThrowingExtensions implements ModInitializer {
 				EntityType.Builder.<GenericThrownItemEntity>create(GenericThrownItemEntity::new, SpawnGroup.MISC)
 						.dimensions(0.25f, 0.25f)
 						.maxTrackingRange(64)
-						.trackingTickInterval(1) // 10 updates per second (20 ticks / 2 = 10 updates/sec), edited to 1
+						.trackingTickInterval(10) // 10 updates per second (20 ticks / 2 = 10 updates/sec), edited to 1
 						.build(entityTypeKey));
 
 		// 2. Register server-side network receiver

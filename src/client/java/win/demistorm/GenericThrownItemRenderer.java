@@ -62,7 +62,7 @@ public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemE
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-pitch));
 
         /* --- 2. flip-spin --------------------------------------------------- */
-        float spin = (state.age * 12.0F // Flip speed
+        float spin = (state.age * 15.0F // Flip speed
             ) % 360F;
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(spin));
 
