@@ -3,6 +3,8 @@ package win.demistorm;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.util.ActionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,12 +37,16 @@ public class VRThrowingExtensionsClient implements ClientModInitializer {
 
 	// Cancel block breaking when throwing is active
 	public static void registerClientEvents() {
-		AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
-			// Only cancel if actively capturing a potential throw
-			if (ThrowHelper.cancellingBreaks()) {
-				return ActionResult.FAIL; // Stop breaking
-			}
-			return ActionResult.PASS; // Allow normal breaking
-		});
+		// cancel LEFT-CLICK block break
+		AttackBlockCallback.EVENT.register((player, world, hand, pos, dir) ->
+				ThrowHelper.cancellingBreaks() ? ActionResult.FAIL : ActionResult.PASS);
+
+		// cancel RIGHT-CLICK place / use block
+		UseBlockCallback.EVENT.register((player, world, hand, hit) ->
+				ThrowHelper.cancellingUse() ? ActionResult.FAIL : ActionResult.PASS);
+
+		// cancel RIGHT-CLICK air (item use without block)
+		UseItemCallback.EVENT.register((player, world, hand) ->
+				ThrowHelper.cancellingUse() ? ActionResult.FAIL : ActionResult.PASS);
 	}
 }

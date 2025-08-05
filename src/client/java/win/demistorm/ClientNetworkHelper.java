@@ -11,8 +11,9 @@ public final class ClientNetworkHelper {
 
     public static void initClient() { /* nothing yet */ }
 
-    public static void sendToServer(Vec3d pos, Vec3d velocity) {
-        System.out.println("ClientNetworkHelper: Sending throw. pos=" + pos + " vel=" + velocity);
-        ClientPlayNetworking.send(new NetworkHelper.ThrowPacket(pos, velocity));
+    public static void sendToServer(Vec3d pos, Vec3d velocity, boolean wholeStack) {
+        System.out.println("ClientNetworkHelper: Sending throw. pos=" + pos +
+                " vel=" + velocity + " all=" + wholeStack);
+        ClientPlayNetworking.send(new NetworkHelper.ThrowPacket(pos, velocity, wholeStack));
     }
 }
