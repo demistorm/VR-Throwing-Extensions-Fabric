@@ -15,7 +15,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
 public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemEntity, GenericThrownItemRenderer.GenericThrownItemRenderState> {
@@ -54,7 +53,7 @@ public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemE
 
         /* --- 1. point into travel direction -------------------------------- */
         Vec3d vel      = state.velocity;
-        float yaw      = (float)(MathHelper.atan2(vel.x, vel.z) * 180.0 / Math.PI);
+        float yaw      = (float)(MathHelper.atan2(vel.z, vel.x) * 180.0 / Math.PI);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - yaw));
 
         /* optional pitch ----------------------------------------------------- */

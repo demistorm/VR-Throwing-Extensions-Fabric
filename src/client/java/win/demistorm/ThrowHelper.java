@@ -85,40 +85,63 @@ public class ThrowHelper {
                 if (history != null) {
                     int usedTicks = Math.min(ticksHeld, maxPoseHistoryTicks);
 
-                    Vec3d avgPos = history.averagePosition(org.vivecraft.api.data.VRBodyPart.MAIN_HAND, usedTicks);
+                    /* ---------- “was the swing long enough?” -------------------- */
+                    Vec3d avgPos = history.averagePosition(VRBodyPart.MAIN_HAND, usedTicks);
                     double movedDistance = startPoint.distanceTo(avgPos);
-
                     if (movedDistance > minThrowDistance) {
-                        Vec3d avgVelocity = history.averageVelocity(org.vivecraft.api.data.VRBodyPart.MAIN_HAND, usedTicks);
-                        assert avgVelocity != null;
-                        double velLength = avgVelocity.length();
 
-                        //  ... inside the existing `onTick` method – replace the block that
-//      currently sends only the velocity with the following:
-                        VRPose pose = VRAPI.instance().getVRPose(mc.player);
-                        assert pose != null;
-                        VRBodyPartData handDataNow = pose.getHand(Hand.MAIN_HAND);
+                        /* ---------- velocity we already used before -------------- */
+                        Vec3d avgVelocity = history.averageVelocity(VRBodyPart.MAIN_HAND,
+                                usedTicks);
+                        assert avgVelocity != null;
+                        double velLength  = avgVelocity.length();
 
                         if (velLength >= throwVelocityThreshold) {
-                            // Apply velocity multiplier to make throws more powerful
+
+                            /* =====================================================
+                             * NEW: get the hand position TWO ticks in the past
+                             * ===================================================== */
+                            Vec3d throwOrigin = null;
+                            try {
+                                // Vivecraft keeps up to 200 ticks – this will throw
+                                // if ‘2’ is outside valid range.
+                                VRPose pose2TicksBack = history.getHistoricalData(2); // <-- API call
+                                VRBodyPartData hand2t = pose2TicksBack.getHand(Hand.MAIN_HAND);
+                                if (hand2t != null) {
+                                    throwOrigin = hand2t.getPos();
+                                }
+                            } catch (IllegalArgumentException ex) {
+                                // history too short – will fall back below
+                            }
+
+                            // Fallback: use current hand position if history failed
+                            if (throwOrigin == null) {
+                                VRPose currentPose = VRAPI.instance().getVRPose(mc.player);
+                                assert currentPose != null;
+                                throwOrigin = currentPose.getHand(Hand.MAIN_HAND).getPos();
+                            }
+
+                            /* ---------- send packet -------------------------------- */
                             Vec3d multipliedVelocity = avgVelocity.multiply(velocityMultiplier);
 
-                            // send pos + velocity
-                            ClientNetworkHelper.sendToServer(handDataNow.getPos(), multipliedVelocity);
+                            ClientNetworkHelper.sendToServer(throwOrigin, multipliedVelocity);
 
+                            /* ---------- feedback & debug --------------------------- */
                             mc.player.sendMessage(Text.literal(
-                                    "[VR Throw] originalV=" + avgVelocity + " multipliedV=" + multipliedVelocity + " p=" + handDataNow.getPos()), false);
+                                    "[VR Throw] origin2t=" + throwOrigin +
+                                            " velOrig="   + avgVelocity +
+                                            " velSend="   + multipliedVelocity), false);
 
-                            // haptics
+                            // nice little rumble
                             VRClientAPI.instance().triggerHapticPulse(
                                     VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.2f);
+
                         } else {
-                            // DEBUG
                             System.out.println("[VR Throw] Too slow. Velocity = " + velLength);
                         }
                     } else {
-                        // DEBUG
-                        System.out.println("[VR Throw] Insufficient motion. Distance=" + movedDistance);
+                        System.out.println("[VR Throw] Insufficient motion. Distance=" +
+                                movedDistance);
                     }
                 }
             } else {

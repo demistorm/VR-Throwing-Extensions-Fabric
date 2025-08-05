@@ -3,7 +3,6 @@ package win.demistorm;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
-import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
 import net.minecraft.util.ActionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
