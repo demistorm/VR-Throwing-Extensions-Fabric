@@ -30,7 +30,8 @@ public class VRThrowingExtensionsClient implements ClientModInitializer {
 		/* renderer: let vanilla handle the model */
 		EntityRendererRegistry.register(
 				VRThrowingExtensions.THROWN_ITEM_TYPE,
-                FlyingItemEntityRenderer::new);
+				GenericThrownItemRenderer::new
+		);
 	}
 
 	// Cancel block breaking when throwing is active
