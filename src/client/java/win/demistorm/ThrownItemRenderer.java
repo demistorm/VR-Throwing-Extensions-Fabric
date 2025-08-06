@@ -66,7 +66,8 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-state.handRollDeg));
 
         // Apply spin rotation around the X-axis
-        float spin = (state.age * 15.0F) % 360F; // Speed of flipping motion
+        float spinSpeed = 15.0F; // Speed of flipping motion
+        float spin = (state.age * spinSpeed) % 360F;
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(spin));
 
         // Apply scale to item
