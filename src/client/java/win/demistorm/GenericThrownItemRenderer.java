@@ -16,6 +16,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 
+
 @Environment(EnvType.CLIENT)
 public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemEntity, GenericThrownItemRenderer.GenericThrownItemRenderState> {
 

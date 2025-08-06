@@ -12,6 +12,7 @@ import org.vivecraft.api.data.VRBodyPart;
 import org.vivecraft.api.data.VRBodyPartData;
 import org.vivecraft.api.data.VRPose;
 import org.vivecraft.api.data.VRPoseHistory;
+import static win.demistorm.VRThrowingExtensions.log;
 
 /**
  * Handles client-side throw detection, pose/velocity sampling and the
@@ -75,7 +76,7 @@ public class ThrowHelper {
             throwWholeStack  = usePressed;    // remember R-click from the very first tick
             cancelBreaking   = false;         // (latched later)
 
-            System.out.println("[VR Throw] Hold trace started with item: " + heldItem);
+            log.debug("[VR Throw] Hold trace started with item: {}", heldItem);
         }
 
         /* ---- STILL HOLDING ------------------------------------------- */
@@ -92,14 +93,14 @@ public class ThrowHelper {
                     double speed = hist.averageSpeed(VRBodyPart.MAIN_HAND, 2);
                     if (speed > speedThreshold) {
                         cancelBreaking = true;
-                        System.out.println("[VR Throw] speed threshold crossed, mining blocked");
+                        log.debug("[VR Throw] speed threshold crossed, mining blocked");
                     }
                 }
             }
         }
 
         /* ---- TRIGGER RELEASED  --------------------------------------- */
-        else if (active && !attackPressed) {
+        else if (active) {
 
             if (ticksHeld >= 5) {                         // minimal “charge” time
                 VRPoseHistory history = VRAPI.instance().getHistoricalVRPoses(mc.player);
@@ -124,22 +125,24 @@ public class ThrowHelper {
 
                             ClientNetworkHelper.sendToServer(origin, launchVel, throwWholeStack);
 
-                            mc.player.sendMessage(Text.literal(
-                                    "[VR Throw] origin=" + origin +
-                                            " vel=" + launchVel +
-                                            " stack=" + throwWholeStack), false);
+                            if (VRThrowingExtensions.debugMode) {
+                                mc.player.sendMessage(Text.literal(
+                                        "[VR Throw] origin=" + origin +
+                                                " vel=" + launchVel +
+                                                " stack=" + throwWholeStack), false);
+                            }
 
                             VRClientAPI.instance().triggerHapticPulse(
                                     VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.2f);
                         } else {
-                            System.out.println("[VR Throw] Too slow. Velocity = " + velLen);
+                            log.debug("[VR Throw] Too slow. Velocity = {}", velLen);
                         }
                     } else {
-                        System.out.println("[VR Throw] Insufficient motion. Distance = " + movedDist);
+                        log.debug("[VR Throw] Insufficient motion. Distance = {}", movedDist);
                     }
                 }
             } else {
-                System.out.println("[VR Throw] Released too early. Held " + ticksHeld + " ticks.");
+                log.debug("[VR Throw] Released too early. Held {} ticks.", ticksHeld);
             }
 
             reset();    // clear everything for the next click

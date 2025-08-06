@@ -6,18 +6,15 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.util.ActionResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static win.demistorm.VRThrowingExtensions.log;
 
 // Client mod initializer
 public class VRThrowingExtensionsClient implements ClientModInitializer {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger("vr-throwing(client)");
-
 	// Initializing everything
 	@Override
 	public void onInitializeClient() {
-		LOGGER.info("VR Throwing Extensions (CLIENT) starting…");
+		log.info("VR Throwing Extensions (CLIENT) starting!");
 
 		// Initialize client-side networking
 		ClientNetworkHelper.initClient();

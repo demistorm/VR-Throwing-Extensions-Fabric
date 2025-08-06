@@ -19,6 +19,7 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import static win.demistorm.VRThrowingExtensions.log;
 
 /**
  * Projectile that carries an arbitrary ItemStack, deals the same damage
@@ -85,7 +86,7 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
         float multipliedDamage = damage * (2F); // Multiplies damage to make up for weird baseAttackDamage
 
         // Debug logging for damage calculation
-        VRThrowingExtensions.LOGGER.info("Thrown item damage calculation: Item={}, Base={}, Final={}, Target={}",
+        log.debug("Thrown item damage calculation: Item={}, Base={}, Final={}, Target={}",
                 getStack().getItem().toString(),
                 base,
                 multipliedDamage,

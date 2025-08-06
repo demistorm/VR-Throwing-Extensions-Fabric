@@ -8,20 +8,31 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class VRThrowingExtensions implements ModInitializer {
 
 	public static final String MOD_ID = "vr-throwing-extensions";
-	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+	public static final Logger log = LoggerFactory.getLogger(MOD_ID);
 
 	/* Public so both sides can access it during renderer/logic registration */
 	public static EntityType<GenericThrownItemEntity> THROWN_ITEM_TYPE;
 
+	// Toggle before building the jar ------------------------------
+	public static final boolean debugMode = true;
+	// --------------------------------------------------------------
+
+	static {
+		// Set the level of *this* mod only
+		Configurator.setLevel(MOD_ID, debugMode ? Level.DEBUG : Level.INFO);
+	}
+
 	@Override
 	public void onInitialize() {
-		LOGGER.info("VR Throwing Extensions (SERVER) loaded!");
+		log.info("VR Throwing Extensions (SERVER) starting!");
 
 		// 1. Register EntityType (server + client) - Updated to use new EntityType.Builder
 		RegistryKey<EntityType<?>> entityTypeKey = RegistryKey.of(RegistryKeys.ENTITY_TYPE,
