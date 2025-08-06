@@ -14,50 +14,43 @@ import org.vivecraft.api.data.VRPose;
 import org.vivecraft.api.data.VRPoseHistory;
 import static win.demistorm.VRThrowingExtensions.log;
 
-/**
- * Handles client-side throw detection, pose/velocity sampling and the
- * decision whether to throw a single item or the whole stack.
- */
+// Client throw logic
 public class ThrowHelper {
 
-    /* ------------------------------------------------------------------ */
-    /* State                                                              */
-    private static boolean active          = false;          // are we tracking a potential throw?
-    private static boolean throwWholeStack = false;          // ⇐ set while holding USE
-    private static boolean cancelBreaking  = false;          // latched once speed-threshold crossed
+    // Various literals
+    private static boolean active          = false;          // Throwing logic active
+    private static boolean throwWholeStack = false;          // Whether the whole stack should be thrown
+    private static boolean cancelBreaking  = false;          // Cancels breaking after a certain speed
+    private static Vec3d      startPoint = Vec3d.ZERO;       // Hand position when attack/destroy pressed
+    private static ItemStack  heldItem   = ItemStack.EMPTY;  // Checks what item is in hand
+    private static int        ticksHeld  = 0;                // How long trigger is pressed
 
-    private static Vec3d      startPoint = Vec3d.ZERO;       // hand position when trigger pressed
-    private static ItemStack  heldItem   = ItemStack.EMPTY;  // copy of item at start (debug/info)
-    private static int        ticksHeld  = 0;                // how long trigger was held
+    // Tunables
+    private static final double minThrowDistance        = 0.08; // Min arm movement to activate throw
+    private static final int    maxPoseHistoryTicks     = 6; // How many ticks to look back for velocity
+    private static final double speedThreshold          = 0.10; // How fast you can move your arm before canceling block breaking
+    private static final double throwVelocityThreshold  = 0.06; // Min velocity to activate throw
+    public  static final double velocityMultiplier      = 6.0; // Velocity multiplier because raw velocity is way too low
 
-    /* ------------------------------------------------------------------ */
-    /* Tunables                                                           */
-    private static final double minThrowDistance        = 0.08;
-    private static final int    maxPoseHistoryTicks     = 6;
-    private static final double speedThreshold          = 0.10;
-    private static final double throwVelocityThreshold  = 0.06; // Changed from 0.07
-    public  static final double velocityMultiplier      = 6.0; // Changed from 8.0
-
-    /* ------------------------------------------------------------------ */
+    // Initializer
     public static void init() {
         ClientTickEvents.END_CLIENT_TICK.register(ThrowHelper::onTick);
     }
 
-    /* -------------  information for the interaction callbacks  -------- */
+    // Interaction callbacks
     public static boolean cancellingBreaks() { return active && cancelBreaking; }
-    public static boolean cancellingUse   () { return active; } // always block right-click while tracking
+    public static boolean cancellingUse   () { return active; } // Always cancel place/use while throwing is active
 
-    /* ------------------------------------------------------------------ */
-    /* Main per-tick logic                                                */
+    // Main throwing logic
     private static void onTick(MinecraftClient mc) {
 
-        /* ---- pre-conditions ------------------------------------------ */
+        // Checks that player is in VR
         if (mc.player == null || !VRAPI.instance().isVRPlayer(mc.player)) return;
 
-        boolean attackPressed = mc.options.attackKey.isPressed(); // left click
-        boolean usePressed    = mc.options.useKey.isPressed();    // right click
+        boolean attackPressed = mc.options.attackKey.isPressed(); // Attack/Destroy keybind
+        boolean placePressed = mc.options.useKey.isPressed();    // Place/Use keybind
 
-        /* ---- START TRACKING  ----------------------------------------- */
+        // When Attack/Destroy is pressed, Start Tracking
         if (!active && attackPressed) {
 
             ItemStack held = mc.player.getMainHandStack();
@@ -68,25 +61,24 @@ public class ThrowHelper {
             VRBodyPartData hand = pose.getHand(Hand.MAIN_HAND);
             if (hand == null)                 return;
 
-            /* initialise state */
+            // Activates throw states
             startPoint       = hand.getPos();
             heldItem         = held.copy();
             ticksHeld        = 0;
             active           = true;
-            throwWholeStack  = usePressed;    // remember R-click from the very first tick
-            cancelBreaking   = false;         // (latched later)
+            throwWholeStack  = placePressed;    // Throws the whole stack if pressed
+            cancelBreaking   = false;         // Doesn't cancel breaking until speed is too fast
 
             log.debug("[VR Throw] Hold trace started with item: {}", heldItem);
         }
 
-        /* ---- STILL HOLDING ------------------------------------------- */
+        // Holding Attack/Destroy
         else if (active && attackPressed) {
 
             ticksHeld        = Math.min(ticksHeld + 1, maxPoseHistoryTicks);
-            throwWholeStack |= usePressed;         // latch “whole-stack” request
+            throwWholeStack |= placePressed;         // Throws whole stack
 
-            /* speed test – once above threshold we keep cancelBreaking true
-               until reset() is called at the end of the swing                */
+            // Checks arm speed to determine if should cancel block breaking
             if (!cancelBreaking) {
                 VRPoseHistory hist = VRAPI.instance().getHistoricalVRPoses(mc.player);
                 if (hist != null) {
@@ -99,10 +91,10 @@ public class ThrowHelper {
             }
         }
 
-        /* ---- TRIGGER RELEASED  --------------------------------------- */
+        // Released Attack/Destroy, Sends throw packet
         else if (active) {
 
-            if (ticksHeld >= 5) {                         // minimal “charge” time
+            if (ticksHeld >= 5) {                         // Minimum button press time to avoid accidental activation
                 VRPoseHistory history = VRAPI.instance().getHistoricalVRPoses(mc.player);
 
                 if (history != null) {
@@ -110,21 +102,25 @@ public class ThrowHelper {
                     Vec3d avgPos        = history.averagePosition(VRBodyPart.MAIN_HAND, usedTicks);
                     double movedDist    = startPoint.distanceTo(avgPos);
 
+                    // Check that the arm has moved enough to throw
                     if (movedDist > minThrowDistance) {
                         Vec3d avgVel     = history.averageVelocity(VRBodyPart.MAIN_HAND, usedTicks);
                         assert avgVel != null;
                         double velLen    = avgVel.length();
 
+                        // Check that the velocity is high off to activate throw
                         if (velLen >= throwVelocityThreshold) {
 
-                            /* ---- origin: hand position 2 ticks ago ------------ */
-                            Vec3d origin = getHandPosTwoTicksBack(history, mc);
+                            // Gets past hand position for accurate throwing because of trigger press times
+                            Vec3d origin = historicalHandPosition(history, mc);
 
-                            /* ---- send packet ---------------------------------- */
+                            // Multiplies velocity before sending it to the server
                             Vec3d launchVel = avgVel.multiply(velocityMultiplier);
 
+                            // Sends throw packet to server
                             ClientNetworkHelper.sendToServer(origin, launchVel, throwWholeStack);
 
+                            // DEBUG
                             if (VRThrowingExtensions.debugMode) {
                                 mc.player.sendMessage(Text.literal(
                                         "[VR Throw] origin=" + origin +
@@ -132,38 +128,41 @@ public class ThrowHelper {
                                                 " stack=" + throwWholeStack), false);
                             }
 
+                            // Sends haptic confirmation
                             VRClientAPI.instance().triggerHapticPulse(
                                     VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.2f);
                         } else {
                             log.debug("[VR Throw] Too slow. Velocity = {}", velLen);
                         }
+
                     } else {
                         log.debug("[VR Throw] Insufficient motion. Distance = {}", movedDist);
                     }
                 }
+
             } else {
                 log.debug("[VR Throw] Released too early. Held {} ticks.", ticksHeld);
             }
 
-            reset();    // clear everything for the next click
+            reset();    // Resets everything :)
         }
     }
 
-    /* ------------------------------------------------------------------ */
-    private static Vec3d getHandPosTwoTicksBack(VRPoseHistory hist, MinecraftClient mc) {
+    // Checks historical hand positions
+    private static Vec3d historicalHandPosition(VRPoseHistory hist, MinecraftClient mc) {
         try {
-            VRPose pose2 = hist.getHistoricalData(2);
+            VRPose pose2 = hist.getHistoricalData(2); // Gets pose from 2 ticks back
             VRBodyPartData hand2 = pose2.getHand(Hand.MAIN_HAND);
             if (hand2 != null) return hand2.getPos();
         } catch (IllegalArgumentException ignored) { }
 
-        // fallback to current pose
+        // Fallback to current pose if historical data isn't present (that guy joined and threw really fast!)
         VRPose now = VRAPI.instance().getVRPose(mc.player);
         assert now != null;
         return now.getHand(Hand.MAIN_HAND).getPos();
     }
 
-    /* ------------------------------------------------------------------ */
+    // Ol' reset
     private static void reset() {
         active          = false;
         throwWholeStack = false;

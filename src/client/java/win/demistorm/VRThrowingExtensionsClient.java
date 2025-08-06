@@ -16,33 +16,30 @@ public class VRThrowingExtensionsClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		log.info("VR Throwing Extensions (CLIENT) starting!");
 
-		// Initialize client-side networking
-		ClientNetworkHelper.initClient();
-
 		// Load throwing logic
 		ThrowHelper.init();
 
 		// Well you can see what this does, it's right under here
 		registerClientEvents();
 
-		/* renderer: let vanilla handle the model */
+		// Register the thrown item entity and renderer
 		EntityRendererRegistry.register(
 				VRThrowingExtensions.THROWN_ITEM_TYPE,
-				GenericThrownItemRenderer::new
+				ThrownItemRenderer::new
 		);
 	}
 
-	// Cancel block breaking when throwing is active
+	// Cancel block breaking and placing/using when throwing is active
 	public static void registerClientEvents() {
-		// cancel LEFT-CLICK block break
+		// Cancel vanilla block breaking
 		AttackBlockCallback.EVENT.register((player, world, hand, pos, dir) ->
 				ThrowHelper.cancellingBreaks() ? ActionResult.FAIL : ActionResult.PASS);
 
-		// cancel RIGHT-CLICK place / use block
+		// Cancel vanilla place/use keybind
 		UseBlockCallback.EVENT.register((player, world, hand, hit) ->
 				ThrowHelper.cancellingUse() ? ActionResult.FAIL : ActionResult.PASS);
 
-		// cancel RIGHT-CLICK air (item use without block)
+		// Cancel using item with place/use keybind
 		UseItemCallback.EVENT.register((player, world, hand) ->
 				ThrowHelper.cancellingUse() ? ActionResult.FAIL : ActionResult.PASS);
 	}

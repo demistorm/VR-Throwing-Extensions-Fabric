@@ -16,27 +16,27 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 
-
+// Renders the thrown item projectile for the client
 @Environment(EnvType.CLIENT)
-public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemEntity, GenericThrownItemRenderer.GenericThrownItemRenderState> {
+public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownItemRenderer.ThrownItemRenderState> {
 
     private final ItemRenderer itemRenderer;
     private final float scale;
 
-    public GenericThrownItemRenderer(Context ctx) {
+    public ThrownItemRenderer(Context ctx) {
         super(ctx);
         this.itemRenderer = MinecraftClient.getInstance().getItemRenderer();
-        this.scale = 0.5f;
-        this.shadowOpacity = 0.5f;
+        this.scale = 0.5f; // Item display scale
+        this.shadowOpacity = 0.5f; // Shadow opacity
     }
 
     @Override
-    public GenericThrownItemRenderState createRenderState() {
-        return new GenericThrownItemRenderState();
+    public ThrownItemRenderState createRenderState() {
+        return new ThrownItemRenderState();
     }
 
     @Override
-    public void updateRenderState(GenericThrownItemEntity entity, GenericThrownItemRenderState state, float tickDelta) {
+    public void updateRenderState(ThrownItemEntity entity, ThrownItemRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
 
         state.itemStack = entity.getStack();
@@ -45,35 +45,32 @@ public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemE
     }
 
     @Override
-    public void render(GenericThrownItemRenderState state,
+    public void render(ThrownItemRenderState state,
                        MatrixStack matrices,
                        VertexConsumerProvider vcp,
                        int light) {
 
         matrices.push();
 
-        /* --- 1. point into travel direction -------------------------------- */
+        // Points towards travel direction and adds pitch
         Vec3d vel      = state.velocity;
         float yaw      = (float)(MathHelper.atan2(vel.z, vel.x) * 180.0 / Math.PI);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - yaw));
-
-        /* optional pitch ----------------------------------------------------- */
         float hor      = MathHelper.sqrt((float)(vel.x * vel.x + vel.z * vel.z));
         float pitch    = (float)(MathHelper.atan2(vel.y, hor) * 180.0 / Math.PI);
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-pitch));
 
-        /* --- 2. flip-spin --------------------------------------------------- */
+        // Adds spinning for vibes
         float spin = (state.age * 15.0F // Flip speed
             ) % 360F;
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(spin));
-
-        /* --- 3. scale ------------------------------------------------------- */
+        // Applies scale to item
         matrices.scale(scale, scale, scale);
 
-        /* --- 4. render the model – NO display transform --------------------- */
+        // Renders the model
         itemRenderer.renderItem(
                 state.itemStack,
-                ItemDisplayContext.FIRST_PERSON_RIGHT_HAND,      // <── here
+                ItemDisplayContext.FIRST_PERSON_RIGHT_HAND,
                 light,
                 OverlayTexture.DEFAULT_UV,
                 matrices,
@@ -86,7 +83,7 @@ public class GenericThrownItemRenderer extends EntityRenderer<GenericThrownItemE
         super.render(state, matrices, vcp, light);
     }
 
-    public static class GenericThrownItemRenderState extends EntityRenderState {
+    public static class ThrownItemRenderState extends EntityRenderState {
         public ItemStack itemStack = ItemStack.EMPTY;
         public Vec3d velocity = Vec3d.ZERO;
         public float age = 0.0f;

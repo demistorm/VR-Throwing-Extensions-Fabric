@@ -8,7 +8,6 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageSources;
-import net.minecraft.entity.projectile.thrown.ThrownItemEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ItemStackParticleEffect;
@@ -21,35 +20,24 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import static win.demistorm.VRThrowingExtensions.log;
 
-/**
- * Projectile that carries an arbitrary ItemStack, deals the same damage
- * (including Sharpness / Smite / Bane bonuses) the stack would in melee,
- * and then drops the item.
- */
-public class GenericThrownItemEntity extends ThrownItemEntity {
+// Projectile that carries the player's held item, deals damage, and drops the item after collision
+public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.ThrownItemEntity {
     private int stackSize = 1; // <-- added field
 
-    /* ------------------------------------------------------------ */
-    /* Constructors                                                 */
-    /* ------------------------------------------------------------ */
-
-    public GenericThrownItemEntity(EntityType<? extends GenericThrownItemEntity> type, World world) {
+    public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, World world) {
         super(type, world);
     }
 
-    public GenericThrownItemEntity(World world, LivingEntity owner, ItemStack carried, boolean isWholeStack) {
+    public ThrownItemEntity(World world, LivingEntity owner, ItemStack carried, boolean isWholeStack) {
         super(VRThrowingExtensions.THROWN_ITEM_TYPE, world);
         setOwner(owner);
-        setItem(carried.copyWithCount(1)); // Visual model is always 1 item
+        setItem(carried.copyWithCount(1)); // Visually only throws 1 model
 
-        // Set stackSize based on whether this is a whole stack throw
+        // Sets stackSize based on whether it is throwing the whole stack or not
         this.stackSize = isWholeStack ? carried.getCount() : 1;
     }
 
-    /* ------------------------------------------------------------ */
-    /* Collision handling                                           */
-    /* ------------------------------------------------------------ */
-
+    // Handles collision mechanics
     @Override
     protected void onCollision(HitResult hit) {
         if (!getWorld().isClient) {
@@ -57,7 +45,7 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
                 onEntityHit((EntityHitResult) hit);
             }
 
-            // Drop the correct number of items
+            // Drop however many items
             ItemStack dropStack = createDropStack();
             dropStack.setCount(stackSize); // Set the actual count to drop
             getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
@@ -70,75 +58,66 @@ public class GenericThrownItemEntity extends ThrownItemEntity {
         }
     }
 
+    // Handles damage mechanics
     @Override
     protected void onEntityHit(EntityHitResult res) {
         Entity target     = res.getEntity();
         ServerWorld world = (ServerWorld) getWorld();
-
         DamageSources sources = world.getDamageSources();
         DamageSource  src     = sources.thrown(this,
                 getOwner() == null ? this : getOwner());
 
-        /* ------------- full vanilla-accurate damage ------------------ */
-        float base   = getBaseAttackDamage(getStack());                 // +1 hand, + item bonus
+        // Grabs the base damage from the itemStack and applies enchantment bonuses on top
+        float base   = getBaseAttackDamage(getStack());
         float damage = EnchantmentHelper.getDamage(
-                world, getStack(), target, src, base);       // adds Sharpness/Smite/…
-        float multipliedDamage = damage * (2F); // Multiplies damage to make up for weird baseAttackDamage
+                world, getStack(), target, src, base); // Accounts for enchantments
+        float multipliedDamage = damage * (2F); // Multiplies damage to make up for weird base attack damage
 
-        // Debug logging for damage calculation
+        // DEBUG
         log.debug("Thrown item damage calculation: Item={}, Base={}, Final={}, Target={}",
                 getStack().getItem().toString(),
                 base,
                 multipliedDamage,
                 target.getName().getString());
 
+        // Actually damages the entity
         target.damage(world, src, multipliedDamage);
 
-        // tiny knock-back
+        // Adds a little knockback
         Vec3d push = getVelocity().normalize().multiply(0.5);
         target.addVelocity(push.x, 0.1 + push.y, push.z);
     }
 
-    /* ------------------------------------------------------------ */
-    /* Helpers                                                      */
-    /* ------------------------------------------------------------ */
-
-    /** Copy + add 1 durability damage (if the item is damageable). */
+    // Creates the dropped stack, also does -1 durability to tools
     private ItemStack createDropStack() {
         ItemStack drop = getStack().copy();
         if (drop.isDamageable()) {
             int totalDamage = MathHelper.clamp(
-                    drop.getDamage() + stackSize, // Damage penalty per item represented
+                    drop.getDamage() + stackSize, // Durability penalty
                     0, drop.getMaxDamage());
             drop.setDamage(totalDamage);
         }
         return drop;
     }
 
-    /**
-     * Returns 1 + sum of the ATTACK_DAMAGE modifiers the stack
-     * contributes for the MAIN_HAND slot (same maths vanilla uses).
-     */
+    // Checks the attack damage of a given item, seems kinda wonky right now though
     private static float getBaseAttackDamage(ItemStack stack) {
         final float[] bonus = {0};
 
         EnchantmentHelper.applyAttributeModifiers(
                 stack, EquipmentSlot.MAINHAND,
                 (attrEntry, modifier) -> {
-                /* 1.21.5: constant is EntityAttributes.ATTACK_DAMAGE
-                   and we compare against the entry's VALUE            */
                     if (attrEntry.value() == EntityAttributes.ATTACK_DAMAGE) {
                         bonus[0] += (float) modifier.value();
                     }
                 });
 
-        return 1.0F + bonus[0];   // bare-hand 1 ♥  + item bonus
+        return 1.0F + bonus[0];   // Base punching damage plus item attack damage
     }
 
-    /* ------------------------------------------------------------ */
-
+    // Placeholder item for ThrownItemEntity's sake
     @Override
     protected Item getDefaultItem() {
-        return net.minecraft.item.Items.STICK;   // any non-empty placeholder item
+        return net.minecraft.item.Items.STICK;
     }
 }
