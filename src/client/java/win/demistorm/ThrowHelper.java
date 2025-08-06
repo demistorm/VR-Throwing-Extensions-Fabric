@@ -6,6 +6,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 import org.vivecraft.api.VRAPI;
 import org.vivecraft.api.client.VRClientAPI;
@@ -122,9 +123,24 @@ public class ThrowHelper {
                             VRPose pose = VRAPI.instance().getVRPose(mc.player);
                             assert pose != null;
                             VRBodyPartData hand = pose.getHand(Hand.MAIN_HAND);
-                            Vector3f euler = new Vector3f();
-                            hand.getRotation().getEulerAnglesXYZ(euler);   // X-pitch, Y-yaw, Z-roll
-                            float rollDeg = (float) Math.toDegrees(euler.z);   // Controller roll in degrees
+
+                            // Hand rotation in world space
+                            Quaternionfc q = hand.getRotation();
+
+                            // Forward axis of the hand (-z is the model’s “nose”)
+                            Vector3f fwd = new Vector3f(0, 0, -1).rotate(q).normalize();
+
+                            // Up axis of the hand (y is up, unlike Blender)
+                            Vector3f up  = new Vector3f(0, 1,  0).rotate(q).normalize();
+
+                            // Project both 'up' and world-up onto the plane that is ⟂ forward
+                            Vector3f projCtrlUp  = up .sub(new Vector3f(fwd).mul(up .dot(fwd))).normalize();
+                            Vector3f projWorldUp = new Vector3f(0, 1, 0)
+                                    .sub(new Vector3f(fwd).mul(fwd.y))           .normalize();
+
+                            // Signed angle between the two projected vectors around forward
+                            float rollRad = projCtrlUp.angleSigned(projWorldUp, fwd);
+                            float rollDeg = (float) Math.toDegrees(rollRad);   // Controller roll in degrees
 
                             // Sends throw packet to server
                             ClientNetworkHelper.sendToServer(origin, launchVel, throwWholeStack, rollDeg);
