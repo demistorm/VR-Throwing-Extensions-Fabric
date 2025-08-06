@@ -6,6 +6,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Vector3f;
 import org.vivecraft.api.VRAPI;
 import org.vivecraft.api.client.VRClientAPI;
 import org.vivecraft.api.data.VRBodyPart;
@@ -117,8 +118,16 @@ public class ThrowHelper {
                             // Multiplies velocity before sending it to the server
                             Vec3d launchVel = avgVel.multiply(velocityMultiplier);
 
+                            // Gathers hand rotation data
+                            VRPose pose = VRAPI.instance().getVRPose(mc.player);
+                            assert pose != null;
+                            VRBodyPartData hand = pose.getHand(Hand.MAIN_HAND);
+                            Vector3f euler = new Vector3f();
+                            hand.getRotation().getEulerAnglesXYZ(euler);   // X-pitch, Y-yaw, Z-roll  (rad)
+                            float rollDeg = (float) Math.toDegrees(euler.z);   // Controller roll in degrees
+
                             // Sends throw packet to server
-                            ClientNetworkHelper.sendToServer(origin, launchVel, throwWholeStack);
+                            ClientNetworkHelper.sendToServer(origin, launchVel, throwWholeStack, rollDeg);
 
                             // DEBUG
                             if (VRThrowingExtensions.debugMode) {

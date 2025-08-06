@@ -8,8 +8,8 @@ import static win.demistorm.VRThrowingExtensions.log;
 public final class ClientNetworkHelper {
     private ClientNetworkHelper() {}
 
-    public static void sendToServer(Vec3d pos, Vec3d velocity, boolean wholeStack) {
+    public static void sendToServer(Vec3d pos, Vec3d velocity, boolean wholeStack, float rollDeg) {
         log.debug("ClientNetworkHelper: Sending throw. pos={} vel={} all={}", pos, velocity, wholeStack);
-        ClientPlayNetworking.send(new NetworkHelper.ThrowPacket(pos, velocity, wholeStack));
+        ClientPlayNetworking.send(new NetworkHelper.ThrowPacket(pos, velocity, wholeStack, rollDeg));
     }
 }

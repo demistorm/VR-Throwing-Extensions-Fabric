@@ -8,6 +8,9 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageSources;
+import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ItemStackParticleEffect;
@@ -26,6 +29,23 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
     public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, World world) {
         super(type, world);
+    }
+    private static final TrackedData<Float> BASE_ROLL =
+            DataTracker.registerData(ThrownItemEntity.class,
+                    TrackedDataHandlerRegistry.FLOAT);
+
+    @Override
+    protected void initDataTracker(DataTracker.Builder builder) {   // ← note the parameter
+        super.initDataTracker(builder);
+        builder.add(BASE_ROLL, 0f);     // default value
+    }
+
+    public void setBaseRoll(float deg) {
+        this.dataTracker.set(BASE_ROLL, deg);   // <-- field + set(...)
+    }
+
+    public float getBaseRoll() {
+        return this.dataTracker.get(BASE_ROLL); // <-- field + get(...)
     }
 
     public ThrownItemEntity(World world, LivingEntity owner, ItemStack carried, boolean isWholeStack) {
@@ -102,17 +122,17 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
     // Checks the attack damage of a given item, seems kinda wonky right now though
     private static float getBaseAttackDamage(ItemStack stack) {
-        final float[] bonus = {0};
+        final float[] bonus = {0f};
 
         EnchantmentHelper.applyAttributeModifiers(
                 stack, EquipmentSlot.MAINHAND,
                 (attrEntry, modifier) -> {
-                    if (attrEntry.value() == EntityAttributes.ATTACK_DAMAGE) {
+                    if (attrEntry == EntityAttributes.ATTACK_DAMAGE) {
                         bonus[0] += (float) modifier.value();
                     }
                 });
 
-        return 1.0F + bonus[0];   // Base punching damage plus item attack damage
+        return 1.0F + bonus[0];   // 1 (“punch”)  + item / enchantment damage
     }
 
     // Placeholder item for ThrownItemEntity's sake

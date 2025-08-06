@@ -17,7 +17,7 @@ public final class NetworkHelper {
     public static final Identifier CHANNEL =
             Identifier.of("vr-throwing-extensions", "throw_packet");
 
-    public record ThrowPacket(Vec3d pos, Vec3d vel, boolean wholeStack)
+    public record ThrowPacket(Vec3d pos, Vec3d vel, boolean wholeStack, float rollDeg)
             implements CustomPayload {
 
         public static final Id<ThrowPacket> ID = new Id<>(CHANNEL);
@@ -32,11 +32,13 @@ public final class NetworkHelper {
                             buf.writeDouble(value.vel.y);
                             buf.writeDouble(value.vel.z);
                             buf.writeBoolean(value.wholeStack);
+                            buf.writeFloat(value.rollDeg);
                         },
-                        (buf) -> new ThrowPacket(
+                        buf -> new ThrowPacket(               // read
                                 new Vec3d(buf.readDouble(), buf.readDouble(), buf.readDouble()),
                                 new Vec3d(buf.readDouble(), buf.readDouble(), buf.readDouble()),
-                                buf.readBoolean())
+                                buf.readBoolean(),
+                                buf.readFloat())
                 );
 
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -70,6 +72,9 @@ public final class NetworkHelper {
         // Rename velocity for readability
         Vec3d velocity = packet.vel();
         proj.setVelocity(velocity);
+
+        // Sets arm roll degree
+        proj.setBaseRoll(packet.rollDeg());
 
         // Launches/spawns the entity
         player.getWorld().spawnEntity(proj);
