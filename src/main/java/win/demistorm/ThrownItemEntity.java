@@ -30,22 +30,23 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, World world) {
         super(type, world);
     }
-    private static final TrackedData<Float> BASE_ROLL =
+    private static final TrackedData<Float> HAND_ROLL =
             DataTracker.registerData(ThrownItemEntity.class,
                     TrackedDataHandlerRegistry.FLOAT);
 
+    // Handles the rotation of the arm
     @Override
-    protected void initDataTracker(DataTracker.Builder builder) {   // ← note the parameter
+    protected void initDataTracker(DataTracker.Builder builder) {
         super.initDataTracker(builder);
-        builder.add(BASE_ROLL, 0f);     // default value
+        builder.add(HAND_ROLL, 0f);
     }
 
-    public void setBaseRoll(float deg) {
-        this.dataTracker.set(BASE_ROLL, deg);   // <-- field + set(...)
+    public void setHandRoll(float deg) {
+        this.dataTracker.set(HAND_ROLL, deg);
     }
 
-    public float getBaseRoll() {
-        return this.dataTracker.get(BASE_ROLL); // <-- field + get(...)
+    public float getHandRoll() {
+        return this.dataTracker.get(HAND_ROLL);
     }
 
     public ThrownItemEntity(World world, LivingEntity owner, ItemStack carried, boolean isWholeStack) {

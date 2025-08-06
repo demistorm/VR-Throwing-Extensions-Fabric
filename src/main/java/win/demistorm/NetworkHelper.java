@@ -74,7 +74,7 @@ public final class NetworkHelper {
         proj.setVelocity(velocity);
 
         // Sets arm roll degree
-        proj.setBaseRoll(packet.rollDeg());
+        proj.setHandRoll(packet.rollDeg());
 
         // Launches/spawns the entity
         player.getWorld().spawnEntity(proj);

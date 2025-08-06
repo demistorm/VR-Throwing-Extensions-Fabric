@@ -118,12 +118,12 @@ public class ThrowHelper {
                             // Multiplies velocity before sending it to the server
                             Vec3d launchVel = avgVel.multiply(velocityMultiplier);
 
-                            // Gathers hand rotation data
+                            // Gathers hand rotation data for accurate throw visual
                             VRPose pose = VRAPI.instance().getVRPose(mc.player);
                             assert pose != null;
                             VRBodyPartData hand = pose.getHand(Hand.MAIN_HAND);
                             Vector3f euler = new Vector3f();
-                            hand.getRotation().getEulerAnglesXYZ(euler);   // X-pitch, Y-yaw, Z-roll  (rad)
+                            hand.getRotation().getEulerAnglesXYZ(euler);   // X-pitch, Y-yaw, Z-roll
                             float rollDeg = (float) Math.toDegrees(euler.z);   // Controller roll in degrees
 
                             // Sends throw packet to server

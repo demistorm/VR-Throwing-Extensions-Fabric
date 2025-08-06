@@ -40,7 +40,7 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         state.itemStack = entity.getStack();
         state.velocity = entity.getVelocity();
         state.age = entity.age + tickDelta;
-        state.baseRollDeg = entity.getBaseRoll();
+        state.handRollDeg = entity.getHandRoll();
     }
 
     @Override
@@ -62,12 +62,11 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         float pitch = (float)(MathHelper.atan2(vel.y, hor) * 180.0 / Math.PI);
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-pitch));
 
-        /* Preserve the hand tilt */
-        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-state.baseRollDeg));
+        // Add hand tilt
+        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-state.handRollDeg));
 
-        // Apply spin rotation around the Z-axis (forward axis after alignment)
-        // This creates the end-over-end flipping motion
-        float spin = (state.age * 15.0F) % 360F;
+        // Apply spin rotation around the X-axis
+        float spin = (state.age * 15.0F) % 360F; // Speed of flipping motion
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(spin));
 
         // Apply scale to item
@@ -93,6 +92,6 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         public ItemStack itemStack = ItemStack.EMPTY;
         public Vec3d velocity = Vec3d.ZERO;
         public float age = 0.0f;
-        public float  baseRollDeg  = 0f;
+        public float handRollDeg = 0f;
     }
 }
