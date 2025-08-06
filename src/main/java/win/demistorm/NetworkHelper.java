@@ -67,19 +67,11 @@ public final class NetworkHelper {
 
         proj.setPosition(packet.pos());
 
-        // THIS IS KINDA WEIRD, WANT TO TEST WITHOUT
+        // Rename velocity for readability
+        Vec3d velocity = packet.vel();
+        proj.setVelocity(velocity);
 
-//        // Add spread only when throwing what represents multiple items
-//        Vec3d velocity = packet.vel();
-//        if (packet.wholeStack() && heldStack.getCount() > 1) {
-//            double spread = 0.1;
-//            velocity = velocity.add(
-//                    (player.getRandom().nextDouble() - 0.5) * spread,
-//                    (player.getRandom().nextDouble() - 0.5) * spread,
-//                    (player.getRandom().nextDouble() - 0.5) * spread);
-//        }
-//        proj.setVelocity(velocity);
-
+        // Launches/spawns the entity
         player.getWorld().spawnEntity(proj);
 
         // Remove items from player's hand
