@@ -26,6 +26,8 @@ import static win.demistorm.VRThrowingExtensions.log;
 // Projectile that carries the player's held item, deals damage, and drops the item after collision
 public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.ThrownItemEntity {
     private int stackSize = 1; // <-- added field
+    public boolean catching = false; // Whether this projectile is being caught
+    private Vec3d storedVelocity = Vec3d.ZERO; // Stores velocity before catching for restoration
 
     public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, World world) {
         super(type, world);
@@ -33,12 +35,16 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     private static final TrackedData<Float> HAND_ROLL =
             DataTracker.registerData(ThrownItemEntity.class,
                     TrackedDataHandlerRegistry.FLOAT);
+    private static final TrackedData<Boolean> IS_CATCHING =
+            DataTracker.registerData(ThrownItemEntity.class,
+                    TrackedDataHandlerRegistry.BOOLEAN);
 
     // Handles the rotation of the arm
     @Override
     protected void initDataTracker(DataTracker.Builder builder) {
         super.initDataTracker(builder);
         builder.add(HAND_ROLL, 0f);
+        builder.add(IS_CATCHING, false);
     }
 
     public void setHandRoll(float deg) {
@@ -47,6 +53,35 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
     public float getHandRoll() {
         return this.dataTracker.get(HAND_ROLL);
+    }
+
+    public void startCatch() {
+        this.catching = true;
+        this.storedVelocity = getVelocity();
+        this.dataTracker.set(IS_CATCHING, true);
+        // Disable gravity while being caught
+        this.setNoGravity(true);
+        log.debug("[VR Catch] Started catch for projectile {}", this.getId());
+    }
+
+    public void cancelCatch() {
+        this.catching = false;
+        this.dataTracker.set(IS_CATCHING, false);
+        // Restore gravity
+        this.setNoGravity(false);
+        // Restore some velocity to continue flight
+        if (storedVelocity.length() > 0.1) {
+            setVelocity(storedVelocity.multiply(0.5));
+        }
+        log.debug("[VR Catch] Canceled catch for projectile {}", this.getId());
+    }
+
+    public boolean isCatching() {
+        return this.dataTracker.get(IS_CATCHING);
+    }
+
+    public int getStackSize() {
+        return this.stackSize;
     }
 
     public ThrownItemEntity(World world, LivingEntity owner, ItemStack carried, boolean isWholeStack) {
@@ -58,9 +93,26 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         this.stackSize = isWholeStack ? carried.getCount() : 1;
     }
 
+    @Override
+    public void tick() {
+        super.tick();
+
+        // Don't apply normal physics if being caught
+        if (isCatching()) {
+            // Apply slight air resistance to smooth magnetism effect
+            Vec3d vel = getVelocity();
+            setVelocity(vel.multiply(0.95));
+        }
+    }
+
     // Handles collision mechanics
     @Override
     protected void onCollision(HitResult hit) {
+        // Don't process collisions while being caught
+        if (isCatching()) {
+            return;
+        }
+
         if (!getWorld().isClient) {
             if (hit.getType() == HitResult.Type.ENTITY) {
                 onEntityHit((EntityHitResult) hit);
@@ -133,7 +185,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
                     }
                 });
 
-        return 1.0F + bonus[0];   // 1 (“punch”)  + item / enchantment damage
+        return 1.0F + bonus[0];   // 1 ("punch")  + item / enchantment damage
     }
 
     // Placeholder item for ThrownItemEntity's sake

@@ -5,6 +5,7 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionfc;
 import org.joml.Vector3f;
@@ -15,6 +16,9 @@ import org.vivecraft.api.data.VRBodyPart;
 import org.vivecraft.api.data.VRBodyPartData;
 import org.vivecraft.api.data.VRPose;
 import org.vivecraft.api.data.VRPoseHistory;
+
+import java.util.Comparator;
+
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Client throw logic
@@ -28,6 +32,11 @@ public class ThrowHelper {
     private static ItemStack  heldItem   = ItemStack.EMPTY;  // Checks what item is in hand
     private static int        ticksHeld  = 0;                // How long trigger is pressed
 
+    // Catching literals
+    private static boolean catchActive      = false;         // Catching logic active
+    private static ThrownItemEntity targetProjectile = null; // The projectile being caught
+    private static int catchTicksHeld = 0;                   // How long trigger is pressed for catching
+
     // Tunables
     private static final double minThrowDistance        = 0.08; // Min arm movement to activate throw
     private static final int    maxPoseHistoryTicks     = 6;    // How many ticks to look back for velocity
@@ -35,10 +44,16 @@ public class ThrowHelper {
     private static final double throwVelocityThreshold  = 0.06; // Min velocity to activate throw
     public  static final double velocityMultiplier      = 6.0;  // Velocity multiplier because raw velocity is way too low
 
+    // Catching tunables
+    private static final double catchMaxDistance        = 2.0;  // Max distance to start catching (2 blocks)
+    private static final double catchMagnetStrength     = 0.15; // Magnetizing effect strength
+    private static final double catchCompletionDistance = 0.3;  // Distance to complete catch
+    private static final int    minCatchTicks          = 3;     // Minimum ticks to hold before catch completes
+
     // Initialization is done by the tracker in VRThrowingExtensionsClient now
 
     // Interaction callbacks
-    public static boolean cancellingBreaks() { return active && cancelBreaking; }
+    public static boolean cancellingBreaks() { return (active && cancelBreaking) || catchActive; }
     public static boolean cancellingUse   () { return active; } // Always cancel place/use while throwing is active
 
     // Throwing logic utilizing Vivecraft's Tracker system now
@@ -61,6 +76,11 @@ public class ThrowHelper {
 
             boolean attackPressed = mc.options.attackKey.isPressed(); // Attack/Destroy keybind
             boolean placePressed = mc.options.useKey.isPressed();     // Place/Use keybind
+
+            // Handle catching logic first
+            if (handleCatching(player, attackPressed)) {
+                return; // Skip throwing logic if catching is active
+            }
 
             // When Attack/Destroy is pressed, Start Tracking
             if (!active && attackPressed) {
@@ -181,6 +201,133 @@ public class ThrowHelper {
         }
     }
 
+    // Handles catching logic, returns true if catching is active (blocks throwing logic)
+    private static boolean handleCatching(ClientPlayerEntity player, boolean attackPressed) {
+        // Check if player's active slot is empty (required for catching)
+        ItemStack activeStack = player.getMainHandStack();
+        if (!activeStack.isEmpty()) {
+            // Player switched to non-empty slot, cancel any active catch
+            if (catchActive) {
+                cancelCatch();
+                log.debug("[VR Catch] Canceled - player switched to non-empty slot");
+            }
+            return false;
+        }
+
+        VRPose pose = VRClientAPI.instance().getPreTickWorldPose();
+        if (pose == null) return catchActive;
+
+        VRBodyPartData hand = pose.getHand(Hand.MAIN_HAND);
+        if (hand == null) return catchActive;
+
+        Vec3d handPos = hand.getPos();
+
+        // When attack is pressed and not already catching, look for projectiles
+        if (!catchActive && attackPressed) {
+            ThrownItemEntity nearestProjectile = findNearestProjectile(player, handPos);
+            if (nearestProjectile != null) {
+                startCatch(nearestProjectile);
+                log.debug("[VR Catch] Started catching projectile");
+                return true;
+            }
+        }
+
+        // Continue active catch
+        else if (catchActive && attackPressed) {
+            if (targetProjectile == null || targetProjectile.isRemoved()) {
+                cancelCatch();
+                log.debug("[VR Catch] Canceled - target projectile no longer exists");
+                return false;
+            }
+
+            catchTicksHeld++;
+            updateCatchMagnetism(handPos, hand.getRotation());
+
+            // Check if projectile is close enough to complete catch
+            double distanceToHand = targetProjectile.getPos().distanceTo(handPos);
+            if (distanceToHand <= catchCompletionDistance && catchTicksHeld >= minCatchTicks) {
+                completeCatch();
+                log.debug("[VR Catch] Completed catch");
+                return false;
+            }
+            return true;
+        }
+
+        // Released attack button, cancel catch if active
+        else if (catchActive) {
+            cancelCatch();
+            log.debug("[VR Catch] Canceled - attack button released");
+            return false;
+        }
+
+        return catchActive;
+    }
+
+    // Finds the nearest Thrown Item within catch range
+    private static ThrownItemEntity findNearestProjectile(ClientPlayerEntity player, Vec3d handPos) {
+        Box searchBox = Box.of(handPos, catchMaxDistance * 2, catchMaxDistance * 2, catchMaxDistance * 2);
+
+        return player.getWorld().getEntitiesByClass(ThrownItemEntity.class, searchBox, entity -> {
+                    if (entity.isRemoved()) return false;
+                    double distance = entity.getPos().distanceTo(handPos);
+                    return distance <= catchMaxDistance;
+                }).stream()
+                .min(Comparator.comparingDouble(e -> e.getPos().distanceTo(handPos)))
+                .orElse(null);
+    }
+
+    // Starts catching the target projectile
+    private static void startCatch(ThrownItemEntity projectile) {
+        catchActive = true;
+        targetProjectile = projectile;
+        catchTicksHeld = 0;
+
+        // Send catch packet to server to start magnetism
+        ClientNetworkHelper.sendCatchToServer(projectile, true);
+    }
+
+    // Updates magnetism effect during catch
+    private static void updateCatchMagnetism(Vec3d handPos, Quaternionfc handRotation) {
+        if (targetProjectile == null) return;
+
+        Vec3d projectilePos = targetProjectile.getPos();
+        Vec3d toHand = handPos.subtract(projectilePos);
+        double distance = toHand.length();
+
+        if (distance > 0.001) { // Avoid division by zero
+            // Apply magnetizing force
+            Vec3d magnetForce = toHand.normalize().multiply(catchMagnetStrength);
+            Vec3d currentVel = targetProjectile.getVelocity();
+            Vec3d newVel = currentVel.multiply(0.8).add(magnetForce); // Blend with current velocity
+
+            // Send updated velocity to server
+            ClientNetworkHelper.sendCatchUpdateToServer(targetProjectile, newVel, handRotation);
+        }
+    }
+
+    // Completes the catch, adding item to player inventory
+    private static void completeCatch() {
+        if (targetProjectile == null) return;
+
+        // Send completion packet to server
+        ClientNetworkHelper.sendCatchCompleteToServer(targetProjectile);
+
+        // Reset catch state
+        resetCatch();
+
+        // Haptic feedback for successful catch
+        VRClientAPI.instance().triggerHapticPulse(
+                VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.3f);
+    }
+
+    // Cancels active catch, restoring projectile to normal flight
+    private static void cancelCatch() {
+        if (targetProjectile != null) {
+            ClientNetworkHelper.sendCatchToServer(targetProjectile, false);
+        }
+        resetCatch();
+    }
+
     // Checks historical hand positions
     private static Vec3d historicalHandPosition(VRPoseHistory hist) {
         try {
@@ -193,6 +340,13 @@ public class ThrowHelper {
         VRPose now = VRClientAPI.instance().getPreTickWorldPose();
         assert now != null;
         return now.getHand(Hand.MAIN_HAND).getPos();
+    }
+
+    // Resets catch state
+    private static void resetCatch() {
+        catchActive = false;
+        targetProjectile = null;
+        catchTicksHeld = 0;
     }
 
     // Ol' reset

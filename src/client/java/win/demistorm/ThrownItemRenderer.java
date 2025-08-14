@@ -41,6 +41,7 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         state.velocity = entity.getVelocity();
         state.age = entity.age + tickDelta;
         state.handRollDeg = entity.getHandRoll();
+        state.isCatching = entity.isCatching();
     }
 
     @Override
@@ -65,10 +66,21 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         // Add hand tilt
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-state.handRollDeg));
 
-        // Apply spin rotation around the X-axis
-        float spinSpeed = 15.0F; // Speed of flipping motion
-        float spin = (state.age * spinSpeed) % 360F;
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(spin));
+        // Different spinning behavior when being caught vs normal flight
+        if (state.isCatching) {
+            // Slower, smoother rotation while being caught
+            float smoothSpin = (state.age * 5.0F) % 360F; // Much slower spin
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(smoothSpin));
+
+            // Add slight bobbing effect while being magnetized
+            float bobOffset = MathHelper.sin(state.age * 0.5F) * 0.05F;
+            matrices.translate(0, bobOffset, 0);
+        } else {
+            // Normal fast spinning during flight
+            float spinSpeed = 15.0F; // Speed of flipping motion
+            float spin = (state.age * spinSpeed) % 360F;
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(spin));
+        }
 
         // Apply scale to item
         matrices.scale(scale, scale, scale);
@@ -94,5 +106,6 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         public Vec3d velocity = Vec3d.ZERO;
         public float age = 0.0f;
         public float handRollDeg = 0f;
+        public boolean isCatching = false;
     }
 }
