@@ -16,9 +16,7 @@ import org.vivecraft.api.data.VRBodyPart;
 import org.vivecraft.api.data.VRBodyPartData;
 import org.vivecraft.api.data.VRPose;
 import org.vivecraft.api.data.VRPoseHistory;
-
 import java.util.Comparator;
-
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Client throw logic
@@ -26,15 +24,13 @@ public class ThrowHelper {
 
     // Various literals
     private static boolean active          = false;          // Throwing logic active
+    private static boolean catchActive     = false;          // Catching logic active
     private static boolean throwWholeStack = false;          // Whether the whole stack should be thrown
     private static boolean cancelBreaking  = false;          // Cancels breaking after a certain speed
-    private static Vec3d      startPoint = Vec3d.ZERO;       // Hand position when attack/destroy pressed
-    private static ItemStack  heldItem   = ItemStack.EMPTY;  // Checks what item is in hand
-    private static int        ticksHeld  = 0;                // How long trigger is pressed
-
-    // Catching literals
-    private static boolean catchActive      = false;         // Catching logic active
+    private static Vec3d startPoint = Vec3d.ZERO;            // Hand position when attack/destroy pressed
+    private static ItemStack heldItem   = ItemStack.EMPTY;   // Checks what item is in hand
     private static ThrownItemEntity targetProjectile = null; // The projectile being caught
+    private static int ticksHeld  = 0;                       // How long trigger is pressed
     private static int catchTicksHeld = 0;                   // How long trigger is pressed for catching
 
     // Tunables
@@ -45,10 +41,10 @@ public class ThrowHelper {
     public  static final double velocityMultiplier      = 6.0;  // Velocity multiplier because raw velocity is way too low
 
     // Catching tunables
-    private static final double catchMaxDistance        = 2.0;  // Max distance to start catching (2 blocks)
-    private static final double catchMagnetStrength     = 0.15; // Magnetizing effect strength
-    private static final double catchCompletionDistance = 0.3;  // Distance to complete catch
-    private static final int    minCatchTicks          = 3;     // Minimum ticks to hold before catch completes
+    private static final double catchMaxDistance        = 3.0;  // Max distance to start catching (in blocks)
+    private static final double catchMagnetStrength     = 0.30; // Magnetizing effect strength
+    private static final double catchCompletionDistance = 0.1;  // Distance to complete catch
+    private static final int    minCatchTicks           = 3;    // Minimum ticks to hold before catch completes
 
     // Initialization is done by the tracker in VRThrowingExtensionsClient now
 
@@ -56,7 +52,7 @@ public class ThrowHelper {
     public static boolean cancellingBreaks() { return (active && cancelBreaking) || catchActive; }
     public static boolean cancellingUse   () { return active; } // Always cancel place/use while throwing is active
 
-    // Throwing logic utilizing Vivecraft's Tracker system now
+    // Throwing logic utilizing Vivecraft's Tracker system
     public static class ThrowTracker implements Tracker {
         @Override
         public ProcessType processType() {
@@ -78,7 +74,7 @@ public class ThrowHelper {
             boolean placePressed = mc.options.useKey.isPressed();     // Place/Use keybind
 
             // Handle catching logic first
-            if (handleCatching(player, attackPressed)) {
+            if (throwCatching(player, attackPressed)) {
                 return; // Skip throwing logic if catching is active
             }
 
@@ -201,15 +197,15 @@ public class ThrowHelper {
         }
     }
 
-    // Handles catching logic, returns true if catching is active (blocks throwing logic)
-    private static boolean handleCatching(ClientPlayerEntity player, boolean attackPressed) {
-        // Check if player's active slot is empty (required for catching)
+    // Handles catching logic, returns true if catching is active and blocks throwing logic
+    private static boolean throwCatching(ClientPlayerEntity player, boolean attackPressed) {
+        // Check if player's active slot is empty
         ItemStack activeStack = player.getMainHandStack();
         if (!activeStack.isEmpty()) {
-            // Player switched to non-empty slot, cancel any active catch
+            // Player switched to occupied slot, cancel any active catch
             if (catchActive) {
                 cancelCatch();
-                log.debug("[VR Catch] Canceled - player switched to non-empty slot");
+                log.debug("[VR Catch] Canceled: Player switched to occupied slot");
             }
             return false;
         }
@@ -227,16 +223,16 @@ public class ThrowHelper {
             ThrownItemEntity nearestProjectile = findNearestProjectile(player, handPos);
             if (nearestProjectile != null) {
                 startCatch(nearestProjectile);
-                log.debug("[VR Catch] Started catching projectile");
+                log.debug("[VR Catch] Started catching projectile...");
                 return true;
             }
         }
 
-        // Continue active catch
+        // Continue catch if projectile is found
         else if (catchActive && attackPressed) {
             if (targetProjectile == null || targetProjectile.isRemoved()) {
                 cancelCatch();
-                log.debug("[VR Catch] Canceled - target projectile no longer exists");
+                log.debug("[VR Catch] Canceled: Target projectile no longer exists");
                 return false;
             }
 
@@ -247,7 +243,7 @@ public class ThrowHelper {
             double distanceToHand = targetProjectile.getPos().distanceTo(handPos);
             if (distanceToHand <= catchCompletionDistance && catchTicksHeld >= minCatchTicks) {
                 completeCatch();
-                log.debug("[VR Catch] Completed catch");
+                log.debug("[VR Catch] Completed catch!");
                 return false;
             }
             return true;
@@ -256,7 +252,7 @@ public class ThrowHelper {
         // Released attack button, cancel catch if active
         else if (catchActive) {
             cancelCatch();
-            log.debug("[VR Catch] Canceled - attack button released");
+            log.debug("[VR Catch] Canceled: Attack button released");
             return false;
         }
 
@@ -294,7 +290,7 @@ public class ThrowHelper {
         Vec3d toHand = handPos.subtract(projectilePos);
         double distance = toHand.length();
 
-        if (distance > 0.001) { // Avoid division by zero
+        if (distance > 0.001) {
             // Apply magnetizing force
             Vec3d magnetForce = toHand.normalize().multiply(catchMagnetStrength);
             Vec3d currentVel = targetProjectile.getVelocity();
@@ -317,10 +313,10 @@ public class ThrowHelper {
 
         // Haptic feedback for successful catch
         VRClientAPI.instance().triggerHapticPulse(
-                VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.3f);
+                VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.5f);
     }
 
-    // Cancels active catch, restoring projectile to normal flight
+    // Cancels active catch and releases projectile
     private static void cancelCatch() {
         if (targetProjectile != null) {
             ClientNetworkHelper.sendCatchToServer(targetProjectile, false);
@@ -342,7 +338,7 @@ public class ThrowHelper {
         return now.getHand(Hand.MAIN_HAND).getPos();
     }
 
-    // Resets catch state
+    // Reset catch state
     private static void resetCatch() {
         catchActive = false;
         targetProjectile = null;

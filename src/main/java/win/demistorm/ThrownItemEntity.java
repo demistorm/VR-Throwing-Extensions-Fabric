@@ -25,7 +25,7 @@ import static win.demistorm.VRThrowingExtensions.log;
 
 // Projectile that carries the player's held item, deals damage, and drops the item after collision
 public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.ThrownItemEntity {
-    private int stackSize = 1; // <-- added field
+    private int stackSize = 1;
     public boolean catching = false; // Whether this projectile is being caught
     private Vec3d storedVelocity = Vec3d.ZERO; // Stores velocity before catching for restoration
 
@@ -69,7 +69,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         this.dataTracker.set(IS_CATCHING, false);
         // Restore gravity
         this.setNoGravity(false);
-        // Restore some velocity to continue flight
+        // Restore some velocity to continue flying
         if (storedVelocity.length() > 0.1) {
             setVelocity(storedVelocity.multiply(0.5));
         }
@@ -185,7 +185,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
                     }
                 });
 
-        return 1.0F + bonus[0];   // 1 ("punch")  + item / enchantment damage
+        return 1.0F + bonus[0]; // 1 (base damage, like a punch) + item/enchantment damage
     }
 
     // Placeholder item for ThrownItemEntity's sake

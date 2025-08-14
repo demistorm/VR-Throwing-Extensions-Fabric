@@ -20,7 +20,7 @@ public final class ClientNetworkHelper {
     }
 
     public static void sendCatchUpdateToServer(ThrownItemEntity entity, Vec3d newVelocity, Quaternionfc handRotation) {
-        // Calculate hand roll from quaternion (same logic as throwing)
+        // Calculate hand roll from quaternionfc (same logic as throwing)
         org.joml.Vector3f fwd = new org.joml.Vector3f(0, 0, -1).rotate(handRotation).normalize();
         org.joml.Vector3f up  = new org.joml.Vector3f(0, 1,  0).rotate(handRotation).normalize();
 

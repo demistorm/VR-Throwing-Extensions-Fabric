@@ -221,7 +221,7 @@ public final class NetworkHelper {
         ItemStack projectileStack = projectile.getStack();
         int stackSize = projectile.getStackSize();
 
-        // Give the item(s) to the player
+        // Gives the itemstack to the player
         ItemStack giveStack = projectileStack.copy();
         giveStack.setCount(stackSize);
         player.setStackInHand(Hand.MAIN_HAND, giveStack);
