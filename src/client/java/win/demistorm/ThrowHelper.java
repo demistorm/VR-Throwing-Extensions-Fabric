@@ -42,8 +42,8 @@ public class ThrowHelper {
 
     // Catching tunables
     private static final double catchMaxDistance        = 3.0;  // Max distance to start catching (in blocks)
-    private static final double catchMagnetStrength     = 0.30; // Magnetizing effect strength
-    private static final double catchCompletionDistance = 0.1;  // Distance to complete catch
+    private static final double catchMagnetStrength     = 0.10; // Magnetizing effect strength
+    private static final double catchCompletionDistance = 0.2;  // Distance to complete catch
     private static final int    minCatchTicks           = 3;    // Minimum ticks to hold before catch completes
 
     // Initialization is done by the tracker in VRThrowingExtensionsClient now
@@ -294,7 +294,7 @@ public class ThrowHelper {
             // Apply magnetizing force
             Vec3d magnetForce = toHand.normalize().multiply(catchMagnetStrength);
             Vec3d currentVel = targetProjectile.getVelocity();
-            Vec3d newVel = currentVel.multiply(0.8).add(magnetForce); // Blend with current velocity
+            Vec3d newVel = currentVel.multiply(0.6).add(magnetForce); // Blend with current velocity
 
             // Send updated velocity to server
             ClientNetworkHelper.sendCatchUpdateToServer(targetProjectile, newVel, handRotation);
