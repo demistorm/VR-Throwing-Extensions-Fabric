@@ -97,6 +97,13 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public void tick() {
         super.tick();
 
+        /* ---------------- Boomerang return handling ---------------- */
+        if (bounceActive) {
+            if (BoomerangEffect.tickReturn(this)) {
+                // reached origin -> switch back to normal physics
+                        bounceActive = false;
+                }
+            }
         // Don't apply normal physics if being caught
         if (isCatching()) {
             // Apply slight air resistance to smooth magnetism effect
@@ -108,23 +115,34 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     // Handles collision mechanics
     @Override
     protected void onCollision(HitResult hit) {
-        // Don't process collisions while being caught
-        if (isCatching()) {
-            return;
-        }
+        // 1) ignore while being magnet-caught
+        if (isCatching()) return;
 
-        if (!getWorld().isClient) {
+        // 2) return-flight → damage once, then drop
+        if (bounceActive || hasBounced) {
             if (hit.getType() == HitResult.Type.ENTITY) {
                 onEntityHit((EntityHitResult) hit);
             }
+            dropAndDiscard();
+            return;
+        }
 
-            // Drop however many items
-            ItemStack dropStack = createDropStack();
-            dropStack.setCount(stackSize); // Set the actual count to drop
-            getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
-                    getWorld(), getX(), getY(), getZ(), dropStack));
-            discard();
-        } else {
+        // 3) first hit (forward flight)
+        if (!getWorld().isClient) {
+            if (hit.getType() == HitResult.Type.ENTITY) {
+                onEntityHit((EntityHitResult) hit);
+
+                boolean doBounce = ConfigHelper.ACTIVE.boomerangEffect
+                        && BoomerangEffect.canBounce(getStack().getItem())
+                        && !hasBounced;
+
+                if (doBounce) {                      // start boomerang
+                    BoomerangEffect.startBounce(this);
+                    return;                          // no drop yet
+                }
+            }
+            dropAndDiscard();                        // normal drop
+        } else {                                     // client-side particles
             getWorld().addParticleClient(
                     new ItemStackParticleEffect(ParticleTypes.ITEM, getStack()),
                     getX(), getY(), getZ(), 0.0, 0.0, 0.0);
@@ -192,5 +210,25 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     @Override
     protected Item getDefaultItem() {
         return net.minecraft.item.Items.STICK;
+    }
+
+    /* --------------------------------------------------------------------- */
+            /*  BOUNCE / BOOMERANG STATE                                             */
+             /* --------------------------------------------------------------------- */
+            // Saved when the entity is created on the server.
+            protected Vec3d originalThrowPos   = Vec3d.ZERO;
+// whether the *first* hit already happened
+        protected boolean hasBounced       = false;
+// true while travelling back towards originalThrowPos
+         protected boolean bounceActive     = false;
+
+    public void setOriginalThrowPos(Vec3d v) { this.originalThrowPos = v; }
+
+    private void dropAndDiscard() {
+        ItemStack dropStack = createDropStack();
+        dropStack.setCount(stackSize);
+        getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
+                getWorld(), getX(), getY(), getZ(), dropStack));
+        discard();
     }
 }

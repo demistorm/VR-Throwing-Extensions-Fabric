@@ -42,8 +42,14 @@ public class VRThrowingExtensions implements ModInitializer {
 				EntityType.Builder.<ThrownItemEntity>create(ThrownItemEntity::new, SpawnGroup.MISC)
 						.dimensions(0.25f, 0.25f)
 						.maxTrackingRange(64)
-						.trackingTickInterval(10) // Updates every 10 ticks, seems smoother than 2 or 1?
+						.trackingTickInterval(3) // Updates every 10 ticks, seems smoother than 2 or 1?
+						// Trying 3 for more up-to-date tracking, hopefully still smoothish?
+						// 3 is smoothish ish but definitely not as smooth. I need to work more on the bouncing logic
+						// anyways.
 						.build(entityTypeKey));
+
+		/* ----------  load config first (creates file if missing) ----------- */
+		ConfigHelper.initServerSide();
 
 		// Initializes server networking
 		NetworkHelper.initServer();

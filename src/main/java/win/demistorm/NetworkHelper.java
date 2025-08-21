@@ -147,6 +147,7 @@ public final class NetworkHelper {
                 player.getWorld(), player, heldStack, packet.wholeStack());
 
         proj.setPosition(packet.pos());
+        proj.setOriginalThrowPos(packet.pos()); // Boomerang reasons
 
         // Rename velocity for readability
         Vec3d velocity = packet.vel();
