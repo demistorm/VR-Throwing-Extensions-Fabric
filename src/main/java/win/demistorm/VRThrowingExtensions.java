@@ -32,7 +32,7 @@ public class VRThrowingExtensions implements ModInitializer {
 	public void onInitialize() {
 		log.info("VR Throwing Extensions (SERVER) starting!");
 
-		// Register entity type
+		// Register entity type with improved tracking settings
 		RegistryKey<EntityType<?>> entityTypeKey = RegistryKey.of(RegistryKeys.ENTITY_TYPE,
 				Identifier.of(MOD_ID, "generic_thrown_item"));
 
@@ -42,10 +42,10 @@ public class VRThrowingExtensions implements ModInitializer {
 				EntityType.Builder.<ThrownItemEntity>create(ThrownItemEntity::new, SpawnGroup.MISC)
 						.dimensions(0.25f, 0.25f)
 						.maxTrackingRange(64)
-						.trackingTickInterval(3) // Updates every 10 ticks, seems smoother than 2 or 1?
-						// Trying 3 for more up-to-date tracking, hopefully still smoothish?
-						// 3 is smoothish ish but definitely not as smooth. I need to work more on the bouncing logic
-						// anyways.
+						// Balanced tracking: frequent enough for smooth boomerang curves,
+						// but not so frequent as to cause network spam
+						.trackingTickInterval(5) // Update every 5 ticks = 4 times per second
+						// This provides good balance between smooth curves and network efficiency
 						.build(entityTypeKey));
 
 		/* ----------  load config first (creates file if missing) ----------- */
