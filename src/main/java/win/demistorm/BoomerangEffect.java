@@ -137,9 +137,29 @@ public final class BoomerangEffect {
         double distSq = toOrigin.lengthSquared();
 
         // Expanded completion radius for more reliable detection
-        if (distSq < 0.36) { // ~0.6 block radius
+        // Also check if the projectile is moving away from the origin (overshot)
+        boolean reachedOrigin = false;
+
+        if (distSq < 0.36) { // ~0.6 block radius - close enough to origin
+            reachedOrigin = true;
             VRThrowingExtensions.log.debug("[Boomerang] Projectile {} reached origin (dist={})",
                     proj.getId(), String.format("%.3f", Math.sqrt(distSq)));
+        } else {
+            // Check if projectile overshot the origin (moving away from it)
+            Vec3d currentVel = proj.getVelocity();
+            if (currentVel.length() > 0.01) {
+                // Dot product: if positive, velocity is pointing away from origin
+                double dotProduct = currentVel.normalize().dotProduct(toOrigin.normalize());
+                if (dotProduct < -0.8 && distSq < 4.0) { // Moving away and reasonably close
+                    reachedOrigin = true;
+                    VRThrowingExtensions.log.debug("[Boomerang] Projectile {} overshot origin (dist={}, dot={})",
+                            proj.getId(), String.format("%.3f", Math.sqrt(distSq)),
+                            String.format("%.3f", dotProduct));
+                }
+            }
+        }
+
+        if (reachedOrigin) {
             return true;
         }
 

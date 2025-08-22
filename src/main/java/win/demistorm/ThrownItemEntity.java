@@ -30,7 +30,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     private Vec3d storedVelocity = Vec3d.ZERO; // Stores velocity before catching for restoration
 
     // Enhanced boomerang state tracking
-    private boolean hasDealtDamage = false; // Prevents multiple damage instances
     private int bounceReturnTicks = 0; // Time spent in return flight
     private boolean reachedOriginOnce = false; // Prevents oscillation at origin
 
@@ -111,10 +110,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
     @Override
     public void tick() {
-        // Store valid velocity for smooth transitions
-        Vec3d currentVel = getVelocity();
-        currentVel.length();// For smooth physics transitions
-
         super.tick();
 
         /* ---------------- Enhanced Boomerang return handling ---------------- */
@@ -123,18 +118,30 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
             // Enhanced return logic with better termination
             if (BoomerangEffect.tickReturn(this)) {
-                // Reached origin -> restore normal physics smoothly
+                // Reached origin → preserve momentum for realistic physics
                 bounceActive = false;
                 reachedOriginOnce = true;
                 this.dataTracker.set(BOUNCE_ACTIVE, false);
 
-                // Restore gravity and apply a gentle downward velocity
+                // Restore gravity but preserve the current velocity for seamless transition
                 setNoGravity(false);
-                Vec3d finalVel = new Vec3d(0, -0.2, 0); // Gentle drop
-                setVelocity(finalVel);
 
-                log.debug("[VR Throw] Projectile {} completed boomerang return after {} ticks",
-                        this.getId(), bounceReturnTicks);
+                // Instead of dropping straight down, preserve the return velocity
+                // This creates a more natural arc as gravity takes over
+                Vec3d returnVel = getVelocity();
+
+                // Optional: Scale down the velocity slightly if it's too fast
+                double currentSpeed = returnVel.length();
+                if (currentSpeed > 1.0) {
+                    // Cap the speed to prevent items flying too far after return
+                    returnVel = returnVel.normalize().multiply(Math.min(currentSpeed, 1.0));
+                }
+
+                // Apply the preserved velocity - gravity will naturally curve the trajectory
+                setVelocity(returnVel);
+
+                log.debug("[VR Throw] Projectile {} completed boomerang return after {} ticks, continuing with velocity {}",
+                        this.getId(), bounceReturnTicks, returnVel);
             }
 
             // Safety timeout - if it's been returning for too long, just drop
@@ -171,18 +178,22 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         }
     }
 
-    // Enhanced collision mechanics with better state management
+    // Enhanced collision mechanics with simplified damage logic
     @Override
     protected void onCollision(HitResult hit) {
         // 1) ignore while being magnet-caught
         if (isCatching()) return;
 
-        // 2) return-flight → damage once if not already done, then drop
+        // 2) return-flight → damage if entity hit, then always drop
         if (bounceActive || hasBounced) {
-            if (hit.getType() == HitResult.Type.ENTITY && !hasDealtDamage) {
+            if (hit.getType() == HitResult.Type.ENTITY) {
                 onEntityHit((EntityHitResult) hit);
-                hasDealtDamage = true; // Prevent multiple damage instances
+                log.debug("[VR Throw] Projectile {} hit entity during return flight, dropping", this.getId());
+            } else if (hit.getType() == HitResult.Type.BLOCK) {
+                log.debug("[VR Throw] Projectile {} hit block during return flight, dropping", this.getId());
             }
+
+            // Always drop after any collision during return flight
             dropAndDiscard();
             return;
         }
@@ -194,7 +205,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
             if (hitEntity) {
                 // Deal damage first
                 onEntityHit((EntityHitResult) hit);
-                hasDealtDamage = true;
 
                 // Then check for boomerang effect
                 boolean shouldBounce = ConfigHelper.ACTIVE.boomerangEffect
@@ -209,7 +219,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
                     // Update tracked data for client sync
                     bounceActive = true;
                     this.dataTracker.set(BOUNCE_ACTIVE, true);
-                    return; // Don't drop yet
+                    return; // Don't drop yet - start return flight
                 }
             }
 
