@@ -25,7 +25,7 @@ public final class ConfigHelper {
     /* ------------------------------------------------------------ */
     public static final class Data {
         public boolean boomerangEffect = true;
-
+        public boolean aimAssist = true; // New: aim assist toggle (on by default)
     }
 
     public static final Identifier CHANNEL =
@@ -54,8 +54,10 @@ public final class ConfigHelper {
     }
 
     public static void loadOrCreateClientConfig() {
-        copyInto(read(), CLIENT);
-        copyInto(CLIENT, ACTIVE);     // single-player default
+        Data d = read();
+        write(d); // Ensure file exists with defaults
+        copyInto(d, CLIENT);
+        copyInto(CLIENT, ACTIVE);
     }
 
     /* ------------------------------------------------------------ */
@@ -69,7 +71,7 @@ public final class ConfigHelper {
         return new Data();            // defaults
     }
 
-    private static void write(Data d) {
+    public static void write(Data d) {
         try {
             Files.createDirectories(CONFIGDIR);
             Files.writeString(FILE, toJson(d));
@@ -78,8 +80,9 @@ public final class ConfigHelper {
         }
     }
 
-    private static void copyInto(Data from, Data to) {
+    public static void copyInto(Data from, Data to) {
         to.boomerangEffect = from.boomerangEffect;
+        to.aimAssist = from.aimAssist;
     }
 
     /* ------------------------------------------------------------ */

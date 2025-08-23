@@ -132,13 +132,16 @@ public class ThrowHelper {
                             assert avgVel != null;
                             double velLen    = avgVel.length();
 
-                            // Check that the velocity is high off to activate throw
+                            // Check that the velocity is high enough to activate throw
                             if (velLen >= throwVelocityThreshold) {
                                 // Gets past hand position for accurate throwing because of trigger press times
                                 Vec3d origin = historicalHandPosition(history);
 
                                 // Multiplies velocity before sending it to the server
                                 Vec3d launchVel = avgVel.multiply(velocityMultiplier);
+
+                                // Apply aim assist to the launch velocity
+                                Vec3d assistedVel = AimHelper.applyAimAssist(player, origin, launchVel);
 
                                 // Gathers hand rotation data for accurate throw visual
                                 VRPose pose = VRClientAPI.instance().getPreTickWorldPose();
@@ -154,7 +157,7 @@ public class ThrowHelper {
                                 // Up axis of the hand (y is up, unlike Blender)
                                 Vector3f up  = new Vector3f(0, 1,  0).rotate(q).normalize();
 
-                                // Project both 'up' and world-up onto the plane that is ⟂ forward
+                                // Project both 'up' and world-up onto the plane that is ⊥ forward
                                 Vector3f projCtrlUp  = up .sub(new Vector3f(fwd).mul(up .dot(fwd))).normalize();
                                 Vector3f projWorldUp = new Vector3f(0, 1, 0)
                                         .sub(new Vector3f(fwd).mul(fwd.y))           .normalize();
@@ -163,14 +166,17 @@ public class ThrowHelper {
                                 float rollRad = projCtrlUp.angleSigned(projWorldUp, fwd);
                                 float rollDeg = (float) Math.toDegrees(rollRad);   // Controller roll in degrees
 
-                                // Sends throw packet to server
-                                ClientNetworkHelper.sendToServer(origin, launchVel, throwWholeStack, rollDeg);
+                                // Sends throw packet to server with assisted velocity
+                                ClientNetworkHelper.sendToServer(origin, assistedVel, throwWholeStack, rollDeg);
 
-                                // DEBUG
+                                // DEBUG - show both original and assisted velocities
                                 if (VRThrowingExtensions.debugMode) {
+                                    boolean aimAssistApplied = !assistedVel.equals(launchVel);
                                     player.sendMessage(Text.literal(
                                             "[VR Throw] origin=" + origin +
-                                                    " vel=" + launchVel +
+                                                    " originalVel=" + launchVel +
+                                                    " assistedVel=" + assistedVel +
+                                                    " aimAssist=" + aimAssistApplied +
                                                     " stack=" + throwWholeStack), false);
                                 }
 

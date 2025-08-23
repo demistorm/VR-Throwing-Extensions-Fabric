@@ -16,10 +16,11 @@ public final class ModMenuIntegration implements ModMenuApi {
         return SimpleToggleScreen::new;
     }
 
-    // dumb, single-button screen
+    // Updated SimpleToggleScreen class with both options
     private static class SimpleToggleScreen extends Screen {
         private final Screen parent;
-        private boolean value = ConfigHelper.CLIENT.boomerangEffect;
+        private boolean boomerangValue = ConfigHelper.CLIENT.boomerangEffect;
+        private boolean aimAssistValue = ConfigHelper.CLIENT.aimAssist;
 
         protected SimpleToggleScreen(Screen parent) {
             super(Text.literal("VR Throwing – Config"));
@@ -28,31 +29,51 @@ public final class ModMenuIntegration implements ModMenuApi {
 
         @Override
         protected void init() {
+            // Boomerang toggle button
             addDrawableChild(
                     ButtonWidget.builder(
-                                    Text.literal("Boomerang: " + (value ? "ON" : "OFF")),
+                                    Text.literal("Boomerang: " + (boomerangValue ? "ON" : "OFF")),
                                     btn -> {
-                                        value = !value;
+                                        boomerangValue = !boomerangValue;
                                         btn.setMessage(Text.literal(
-                                                "Boomerang: " + (value ? "ON" : "OFF")));
+                                                "Boomerang: " + (boomerangValue ? "ON" : "OFF")));
                                     })
-                            .dimensions(width / 2 - 75, height / 2 - 10, 150, 20)
+                            .dimensions(width / 2 - 75, height / 2 - 30, 150, 20)
                             .build());
 
+            // Aim assist toggle button
+            addDrawableChild(
+                    ButtonWidget.builder(
+                                    Text.literal("Aim Assist: " + (aimAssistValue ? "ON" : "OFF")),
+                                    btn -> {
+                                        aimAssistValue = !aimAssistValue;
+                                        btn.setMessage(Text.literal(
+                                                "Aim Assist: " + (aimAssistValue ? "ON" : "OFF")));
+                                    })
+                            .dimensions(width / 2 - 75, height / 2 - 5, 150, 20)
+                            .build());
+
+            // Done button
             addDrawableChild(
                     ButtonWidget.builder(Text.literal("Done"),
                                     btn -> {
-                                        ConfigHelper.CLIENT.boomerangEffect = value;
-                                        ConfigHelper.loadOrCreateClientConfig(); // save file
+                                        ConfigHelper.CLIENT.boomerangEffect = boomerangValue;
+                                        ConfigHelper.CLIENT.aimAssist = aimAssistValue;
+                                        ConfigHelper.write(ConfigHelper.CLIENT);
+                                        assert client != null;
+                                        if (client.getServer() != null) { // Integrated server (singleplayer)
+                                            ConfigHelper.copyInto(ConfigHelper.CLIENT, ConfigHelper.ACTIVE); // Apply immediately
+                                        }
                                         assert client != null;
                                         client.setScreen(parent);
                                     })
-                            .dimensions(width / 2 - 50, height / 2 + 20, 100, 20)
+                            .dimensions(width / 2 - 50, height / 2 + 25, 100, 20)
                             .build());
         }
 
         @Override public void close() {
             assert client != null;
-            client.setScreen(parent); }
+            client.setScreen(parent);
+        }
     }
 }
