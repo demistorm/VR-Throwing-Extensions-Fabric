@@ -2,6 +2,8 @@ package win.demistorm;
 
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -90,6 +92,13 @@ public final class BoomerangEffect {
 
         proj.setVelocity(finalVel);
         proj.setNoGravity(true); // No gravity during return flight for smoother arc
+
+        // Play boomerang sound
+        if (!proj.getWorld().isClient()) {
+            proj.getWorld().playSound(null, proj.getBlockPos(),
+                    SoundEvents.ENTITY_GENERIC_BIG_FALL, SoundCategory.PLAYERS,
+                    0.6f, 1.5f);
+        }
 
         VRThrowingExtensions.log.debug(
                 "[Boomerang] Projectile {} started return flight. Distance={}, Roll={}°, Speed={} (mult={}), Lift={}",

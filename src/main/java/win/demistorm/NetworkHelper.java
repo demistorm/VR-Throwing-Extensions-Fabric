@@ -9,6 +9,8 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
@@ -159,6 +161,13 @@ public final class NetworkHelper {
         // Launches/spawns the entity
         player.getWorld().spawnEntity(proj);
 
+        // Play throw sound
+        if (!player.getWorld().isClient()) {
+            player.getWorld().playSound(null, player.getBlockPos(),
+                    SoundEvents.ENTITY_WITCH_THROW, SoundCategory.PLAYERS,
+                    0.6f, 1.05f);
+        }
+
         // Remove items from player's hand
         if (packet.wholeStack()) {
             player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
@@ -221,6 +230,13 @@ public final class NetworkHelper {
         // Get the item stack from the projectile
         ItemStack projectileStack = projectile.getStack();
         int stackSize = projectile.getStackSize();
+
+        // Play catch sound
+        if (!player.getWorld().isClient()) {
+            player.getWorld().playSound(null, player.getBlockPos(),
+                    SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS,
+                    0.5f, 2.0f);
+        }
 
         // Gives the itemstack to the player
         ItemStack giveStack = projectileStack.copy();
