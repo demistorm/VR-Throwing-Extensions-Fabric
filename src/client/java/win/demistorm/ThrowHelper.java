@@ -154,15 +154,15 @@ public class ThrowHelper {
                             assert rawHandVel != null;
                             Vec3d relativeVel = rawHandVel.subtract(playerVel);
 
-                            double velLen = relativeVel.length();
+                            double velLength = relativeVel.length();
 
                             // Check that the velocity is high enough to activate throw
-                            if (velLen >= throwVelocityThreshold) {
+                            if (velLength >= throwVelocityThreshold) {
                                 // Gets past hand position for accurate throwing because of trigger press times
                                 Vec3d origin = historicalHandPosition(history);
 
                                 // NEW: Apply dynamic velocity multiplier based on throw strength
-                                double dynamicMultiplier = calculateVelocityMultiplier(velLen);
+                                double dynamicMultiplier = calculateVelocityMultiplier(velLength);
                                 Vec3d launchVel = relativeVel.multiply(dynamicMultiplier);
 
                                 // Apply aim assist to the launch velocity
@@ -214,7 +214,7 @@ public class ThrowHelper {
                                 VRClientAPI.instance().triggerHapticPulse(
                                         VRBodyPart.fromInteractionHand(Hand.MAIN_HAND), 0.2f);
                             } else {
-                                log.debug("[VR Throw] Too slow. Velocity = {}", velLen);
+                                log.debug("[VR Throw] Too slow. Velocity = {}", velLength);
                             }
                         } else {
                             log.debug("[VR Throw] Insufficient relative arm motion. Distance = {} (absolute was {})",
