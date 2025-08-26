@@ -11,29 +11,21 @@ import net.minecraft.util.math.Vec3d;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Enhanced boomerang logic with smoother physics and better origin detection
- * All state lives inside the {@link ThrownItemEntity} instances,
- * this class just keeps the helper maths and "what is allowed to bounce" list.
- */
+// Boomerang logic separated for organization
 public final class BoomerangEffect {
-    /* ------------------------------------------------------------ */
-    /*  TUNABLE PARAMETERS                                           */
-    /* ------------------------------------------------------------ */
-    // Base return speed - easily tunable multiplier for overall speed
-    public static final double BASE_RETURN_SPEED = 0.05; // Adjust this to make all returns faster/slower
+    // Base return speed (affects overall return speed)
+    public static final double baseReturnSpeed = 0.20;
 
     // Dynamic speed scaling - fully configurable curve
-    public static final double CLOSE_DISTANCE = 3.0;     // Distance considered "close"
-    public static final double FAR_DISTANCE = 30.0;      // Distance considered "far"
-    public static final double CLOSE_SPEED_MULT = 0.7;   // Speed multiplier for close throws
-    public static final double FAR_SPEED_MULT = 1.8;     // Speed multiplier for far throws
+    public static final double closeDistance = 3.0;          // Distance considered "close"
+    public static final double farDistance = 30.0;           // Distance considered "far"
+    public static final double closeSpeedMultiplier = 0.7;   // Speed multiplier for close throws
+    public static final double farSpeedMultiplier = 1.8;     // Speed multiplier for far throws
 
-    // Optional: Non-linear scaling factor (1.0 = linear, >1.0 = exponential curve)
-    public static final double SCALING_CURVE = 1.2;
-    /* ------------------------------------------------------------ */
-    /*  ELIGIBLE ITEMS                                               */
-    /* ------------------------------------------------------------ */
+    // Curve scaling factor for added dynamics (linear = 1.0, curve = 1.0+)
+    public static final double scalingCurve = 1.2;
+
+    // This will be used in 1.2 where weapons/tools will be explicitly listed
     public static final Set<Item> bounceTools = new HashSet<>();
     static {
         Registries.ITEM.stream().filter(i -> !Registries.ITEM.getId(i)
@@ -45,12 +37,8 @@ public final class BoomerangEffect {
         return bounceTools.contains(i);
     }
 
-    /*  ENHANCED ACTIVATION                                          */
-    /* ------------------------------------------------------------ */
-    /**
-     * Starts the boomerang-style return path with improved physics.
-     * Uses the original throw position and stored hand roll for realistic trajectory.
-     */
+    // Starts the boomerang-style return path
+    // Uses the original throw position and stored hand roll for trajectory
     public static void startBounce(ThrownItemEntity proj) {
         proj.hasBounced = true;
         proj.bounceActive = true;
@@ -59,7 +47,7 @@ public final class BoomerangEffect {
         Vec3d toOrigin = proj.originalThrowPos.subtract(currentPos);
         double distanceToOrigin = toOrigin.length();
 
-        // Avoid division by zero and handle very close origins
+        // Avoid division by zero and handle very close origin
         if (distanceToOrigin < 0.1) {
             VRThrowingExtensions.log.debug("[Boomerang] Too close to origin, dropping normally");
             proj.bounceActive = false;
@@ -68,20 +56,20 @@ public final class BoomerangEffect {
 
         Vec3d dir = toOrigin.normalize();
 
-        // Convert stored hand roll into radians for spin effect
+        // Convert stored hand roll for spin effect
         float rollRad = (float) Math.toRadians(proj.getHandRoll());
 
-        // Compute lift axis from spin: perpendicular to motion in roll direction
+        // Compute lift axis from spin (perpendicular to motion in roll direction)
         Vec3d sideAxis = new Vec3d(-dir.z, 0, dir.x).normalize();
         Vec3d liftAxis = dir.crossProduct(sideAxis);
 
-        // Enhanced lift calculation based on distance and roll
+        // Lift calc based on distance and roll
         double liftStrength = MathHelper.sin(rollRad) * 0.12; // Slightly reduced for stability
         Vec3d lift = liftAxis.multiply(liftStrength);
 
-        // Calculate dynamic return speed based on distance and base speed
+        // Calc dynamic return speed based on distance and base speed
         double speedMultiplier = calculateSpeedMultiplier(distanceToOrigin);
-        double bounceSpeed = BASE_RETURN_SPEED * speedMultiplier;
+        double bounceSpeed = baseReturnSpeed * speedMultiplier;
 
         // Calculate initial return velocity with arc
         Vec3d baseVel = dir.multiply(bounceSpeed);
@@ -100,6 +88,7 @@ public final class BoomerangEffect {
                     0.6f, 1.5f);
         }
 
+        // DEBUG
         VRThrowingExtensions.log.debug(
                 "[Boomerang] Projectile {} started return flight. Distance={}, Roll={}°, Speed={} (mult={}), Lift={}",
                 proj.getId(), String.format("%.2f", distanceToOrigin),
@@ -109,44 +98,32 @@ public final class BoomerangEffect {
                 liftAxis);
     }
 
-    /**
-     * Calculates dynamic speed multiplier based on throw distance.
-     * Uses a smooth curve that can be easily tuned with the constants above.
-     * Examples with default settings:
-     * - 3 blocks: 70% speed (close)
-     * - 10 blocks: ~95% speed
-     * - 20 blocks: ~140% speed
-     * - 30+ blocks: 180% speed (far)
-     */
+    // Calculate dynamic speed multiplier based on throw distance using the scalingCurve
     private static double calculateSpeedMultiplier(double distance) {
         // Handle edge cases
-        if (distance <= CLOSE_DISTANCE) {
-            return CLOSE_SPEED_MULT;
-        } else if (distance >= FAR_DISTANCE) {
-            return FAR_SPEED_MULT;
+        if (distance <= closeDistance) {
+            return closeSpeedMultiplier;
+        } else if (distance >= farDistance) {
+            return farSpeedMultiplier;
         }
 
         // Calculate normalized position between close and far (0.0 to 1.0)
-        double normalizedDistance = (distance - CLOSE_DISTANCE) / (FAR_DISTANCE - CLOSE_DISTANCE);
+        double normalizedDistance = (distance - closeDistance) / (farDistance - closeDistance);
 
         // Apply optional curve scaling for non-linear progression
-        normalizedDistance = Math.pow(normalizedDistance, SCALING_CURVE);
+        normalizedDistance = Math.pow(normalizedDistance, scalingCurve);
 
         // Linear interpolation between close and far multipliers
-        return CLOSE_SPEED_MULT + normalizedDistance * (FAR_SPEED_MULT - CLOSE_SPEED_MULT);
+        return closeSpeedMultiplier + normalizedDistance * (farSpeedMultiplier - closeSpeedMultiplier);
     }
 
-    /**
-     * Enhanced per-tick update with improved steering and termination.
-     * Returns TRUE when the journey should finish.
-     */
+    // Handles projectile velocity when it reaches the throw origin and ends the item's journey
     public static boolean tickReturn(ThrownItemEntity proj) {
         Vec3d currentPos = proj.getPos();
         Vec3d toOrigin = proj.originalThrowPos.subtract(currentPos);
         double distSq = toOrigin.lengthSquared();
 
-        // Expanded completion radius for more reliable detection
-        // Also check if the projectile is moving away from the origin (overshot)
+        // Check if the projectile reached or overshot the origin
         boolean reachedOrigin = false;
 
         if (distSq < 0.36) { // ~0.6 block radius - close enough to origin
@@ -154,10 +131,10 @@ public final class BoomerangEffect {
             VRThrowingExtensions.log.debug("[Boomerang] Projectile {} reached origin (dist={})",
                     proj.getId(), String.format("%.3f", Math.sqrt(distSq)));
         } else {
-            // Check if projectile overshot the origin (moving away from it)
+            // Check if projectile overshot the origin
             Vec3d currentVel = proj.getVelocity();
             if (currentVel.length() > 0.01) {
-                // Dot product: if positive, velocity is pointing away from origin
+                // If positive, velocity is pointing away from origin
                 double dotProduct = currentVel.normalize().dotProduct(toOrigin.normalize());
                 if (dotProduct < -0.8 && distSq < 4.0) { // Moving away and reasonably close
                     reachedOrigin = true;
@@ -175,19 +152,18 @@ public final class BoomerangEffect {
         Vec3d wantDir = toOrigin.normalize();
         Vec3d currentVel = proj.getVelocity();
 
-        // Enhanced steering with speed preservation
         // More aggressive steering when far, gentler when close
         double steerStrength = MathHelper.clamp(distSq * 0.15, 0.05, 0.15);
         double dampFactor = 0.92; // Slight damping for stability
 
-        // Calculate new velocity with improved steering
+        // Calc new velocity with improved steering
         Vec3d steerForce = wantDir.multiply(steerStrength);
         Vec3d newVel = currentVel.multiply(dampFactor).add(steerForce);
 
-        // Calculate dynamic speed limits based on distance (use the same system as initial bounce)
+        // Calc dynamic speed limits based on distance (use the same system as initial bounce)
         double distance = Math.sqrt(distSq);
         double speedMultiplier = calculateSpeedMultiplier(distance);
-        double targetSpeed = BASE_RETURN_SPEED * speedMultiplier;
+        double targetSpeed = baseReturnSpeed * speedMultiplier;
         double maxSpeed = targetSpeed * 1.5; // Allow 50% over target for momentum
         double minSpeed = targetSpeed * 0.4; // Minimum 40% of target to avoid stalling
 
