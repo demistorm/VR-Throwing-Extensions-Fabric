@@ -292,15 +292,18 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         return net.minecraft.item.Items.STICK;
     }
 
-    /* --------------------------------------------------------------------- */
-    /*  BOUNCE / BOOMERANG STATE                                             */
-    /* --------------------------------------------------------------------- */
     // Saved when the entity is created on the server.
     protected Vec3d originalThrowPos = Vec3d.ZERO;
     // whether the *first* hit already happened
     protected boolean hasBounced = false;
     // true while travelling back towards originalThrowPos
     protected boolean bounceActive = false;
+    // Store the decaying arc offset used during return. Not persisted.
+    public Vec3d bounceCurveOffset = Vec3d.ZERO;
+    public Vec3d bouncePlaneNormal = Vec3d.ZERO; // fixed, never changes
+    public double bounceArcMag      = 0.0;       // keeps decaying
+    public boolean bounceInverse    = false;     // true ⇒ use the “other” side
+    public boolean didMicroBounce   = false;     // (optional final hop)
 
     public void setOriginalThrowPos(Vec3d v) {
         this.originalThrowPos = v;

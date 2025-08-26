@@ -86,7 +86,7 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
             matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(returnSpin));
 
             // Add subtle wobble to suggest the curved flight path
-            float wobble = MathHelper.sin(state.age * 0.3F) * 3.0F;
+            float wobble = MathHelper.sin(state.age * 0.35F) * 3.0F;
             matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(wobble));
 
             // Slight pulsing scale effect for visual feedback
