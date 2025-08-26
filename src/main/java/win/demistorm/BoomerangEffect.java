@@ -14,12 +14,12 @@ import java.util.Set;
 // Boomerang logic separated for organization
 public final class BoomerangEffect {
     // Base return speed (affects overall return speed)
-    public static final double baseReturnSpeed = 0.20;
+    public static final double baseReturnSpeed = 0.30;
 
     // Dynamic speed scaling - fully configurable curve
     public static final double closeDistance = 3.0;          // Distance considered "close"
-    public static final double farDistance = 30.0;           // Distance considered "far"
-    public static final double closeSpeedMultiplier = 0.7;   // Speed multiplier for close throws
+    public static final double farDistance = 25.0;           // Distance considered "far"
+    public static final double closeSpeedMultiplier = 0.5;   // Speed multiplier for close throws
     public static final double farSpeedMultiplier = 1.8;     // Speed multiplier for far throws
 
     // Curve scaling factor for added dynamics (linear = 1.0, curve = 1.0+)

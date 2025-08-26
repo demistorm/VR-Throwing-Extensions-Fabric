@@ -30,7 +30,7 @@ public final class AimHelper {
     Testing for 0.04. RESULT = Works somewhat effectively, does not handle vertical great, but otherwise mostly works.
     Testing for 0.9 needed. RESULT = Oh goodness no. You have to totally throw not at the target and then it will
     activate and you will never ever find your sword again  (RIP Netheritey)
-    Testing for 0.06. RESULT =
+    Testing for 0.06. RESULT = Seems pretty decent, not too different from 0.04 but of vibes I think it is better
      */
     private static final double gravityCalc = 0.06; // blocks/tick² (roughly matches Minecraft gravity)
     private static final double ticksPerSecond = 20.0;
@@ -90,7 +90,7 @@ public final class AimHelper {
 
     // Evaluates potential targets
     private static TargetInfo evaluateTarget(LivingEntity entity, Vec3d origin, Vec3d throwDirection, double throwSpeed) {
-        Vec3d targetPos = entity.getPos().add(0, entity.getHeight() / 2, 0); // Center mass
+        Vec3d targetPos = entity.getPos().add(0, entity.getHeight() / 1.5, 0); // Target on mob to hit
         Vec3d toTarget = targetPos.subtract(origin);
         double distance = toTarget.length();
 
