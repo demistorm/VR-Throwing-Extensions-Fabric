@@ -303,7 +303,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public Vec3d bouncePlaneNormal = Vec3d.ZERO; // fixed, never changes
     public double bounceArcMag      = 0.0;       // keeps decaying
     public boolean bounceInverse    = false;     // true ⇒ use the “other” side
-    public boolean didMicroBounce   = false;     // (optional final hop)
 
     public void setOriginalThrowPos(Vec3d v) {
         this.originalThrowPos = v;
