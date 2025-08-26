@@ -13,25 +13,29 @@ import java.util.Optional;
 
 import static win.demistorm.VRThrowingExtensions.log;
 
-/**
- * Optimized aim assist that balances accuracy with efficiency.
- * Uses smart ballistic calculation for better center-mass targeting.
- */
+// Aim assist joys
 public final class AimHelper {
 
     // Tunable parameters
-    private static final double MAX_ASSIST_DISTANCE = 25.0;
-    private static final double MAX_ASSIST_ANGLE = 35.0;
-    private static final double ASSIST_STRENGTH = 0.5;
-    private static final double MAX_PREDICTION_TIME = 2.5;
+    private static final double maxAssistDistance = 25.0;
+    private static final double assistViewAngle = 35.0;
+    private static final double assistStrength = 0.5;
+    private static final double maxPredictionTime = 2.5;
 
-    // Minecraft physics constants (based on research data)
-    private static final double GRAVITY_ACCELERATION = 0.04; // blocks/tick² (roughly matches thrown items)
-    private static final double TICKS_PER_SECOND = 20.0;
+    // Minecraft physics constants
+    /*
+    gravityCalc was set to 0.04 however based on my research it should be more like 0.9? That did not work,
+    am trying something more modest like a 50% bump up to 0.06.
 
-    /**
-     * Applies smart aim assist with ballistic trajectory compensation.
+    Testing for 0.04. RESULT = Works somewhat effectively, does not handle vertical great, but otherwise mostly works.
+    Testing for 0.9 needed. RESULT = Oh goodness no. You have to totally throw not at the target and then it will
+    activate and you will never ever find your sword again  (RIP Netheritey)
+    Testing for 0.06. RESULT =
      */
+    private static final double gravityCalc = 0.06; // blocks/tick² (roughly matches Minecraft gravity)
+    private static final double ticksPerSecond = 20.0;
+
+    // Applies aim assist
     public static Vec3d applyAimAssist(ClientPlayerEntity player, Vec3d origin, Vec3d originalVelocity) {
         if (!ConfigHelper.CLIENT.aimAssist) {
             return originalVelocity;
@@ -54,15 +58,13 @@ public final class AimHelper {
         return assistedVelocity;
     }
 
-    /**
-     * Efficient target finding with smart filtering.
-     */
+    // Filters targets to find the intended one
     private static Optional<TargetInfo> findBestTarget(ClientPlayerEntity player, Vec3d origin, Vec3d velocity) {
         Vec3d throwDirection = velocity.normalize();
         double throwSpeed = velocity.length();
 
-        // Optimized search box
-        Box searchBox = Box.of(origin, MAX_ASSIST_DISTANCE * 2, MAX_ASSIST_DISTANCE * 2, MAX_ASSIST_DISTANCE * 2);
+        // Search box
+        Box searchBox = Box.of(origin, maxAssistDistance * 2, maxAssistDistance * 2, maxAssistDistance * 2);
 
         List<LivingEntity> candidates = player.getWorld()
                 .getEntitiesByClass(LivingEntity.class, searchBox, entity ->
@@ -86,47 +88,42 @@ public final class AimHelper {
         return Optional.ofNullable(bestTarget);
     }
 
-    /**
-     * Smart target evaluation with optimized ballistic intercept calculation.
-     */
+    // Evaluates potential targets
     private static TargetInfo evaluateTarget(LivingEntity entity, Vec3d origin, Vec3d throwDirection, double throwSpeed) {
         Vec3d targetPos = entity.getPos().add(0, entity.getHeight() / 2, 0); // Center mass
         Vec3d toTarget = targetPos.subtract(origin);
         double distance = toTarget.length();
 
         // Quick distance and angle filtering
-        if (distance > MAX_ASSIST_DISTANCE) return null;
+        if (distance > maxAssistDistance) return null;
 
         double angle = Math.toDegrees(Math.acos(MathHelper.clamp(
                 throwDirection.dotProduct(toTarget.normalize()), -1.0, 1.0)));
-        if (angle > MAX_ASSIST_ANGLE) return null;
+        if (angle > assistViewAngle) return null;
 
-        // Smart intercept calculation - only 3-5 iterations instead of 25+
+        // Intercept calc
         Vec3d entityVelocity = entity.getVelocity();
         double interceptTime = calculateOptimalInterceptTime(origin, targetPos, entityVelocity, throwSpeed);
 
-        if (interceptTime < 0 || interceptTime > MAX_PREDICTION_TIME) return null;
+        if (interceptTime < 0 || interceptTime > maxPredictionTime) return null;
 
-        // Calculate predicted position and trajectory feasibility
-        Vec3d predictedPos = targetPos.add(entityVelocity.multiply(interceptTime * TICKS_PER_SECOND));
-        double trajectoryConfidence = calculateTrajectoryFeasibility(origin, predictedPos, throwSpeed, interceptTime);
+        // Calculate predicted position and trajectory possibility
+        Vec3d predictedPos = targetPos.add(entityVelocity.multiply(interceptTime * ticksPerSecond));
+        double trajectoryConfidence = calculateTrajectoryPossibility(origin, predictedPos, throwSpeed, interceptTime);
 
         if (trajectoryConfidence < 0.3) return null; // Skip impossible shots
 
         return new TargetInfo(entity, targetPos, predictedPos, distance, angle, trajectoryConfidence, interceptTime);
     }
 
-    /**
-     * Optimized intercept time calculation using smart initial guess + refinement.
-     * Much faster than brute force iteration.
-     */
+    // Calc for interception time
     private static double calculateOptimalInterceptTime(Vec3d origin, Vec3d targetPos, Vec3d targetVel, double throwSpeed) {
-        // Smart initial guess based on simple linear distance
+        // Smart initial guess based on linear distance
         Vec3d displacement = targetPos.subtract(origin);
         double linearDistance = displacement.length();
-        double initialGuess = linearDistance / throwSpeed / TICKS_PER_SECOND;
+        double initialGuess = linearDistance / throwSpeed / ticksPerSecond;
 
-        // Quick refinement: test initial guess ±50% in just 5 steps
+        // Test initial guess + or - 50% with 5 steps
         double bestTime = -1;
         double bestError = Double.MAX_VALUE;
 
@@ -139,9 +136,9 @@ public final class AimHelper {
         };
 
         for (double testTime : testTimes) {
-            if (testTime <= 0 || testTime > MAX_PREDICTION_TIME) continue;
+            if (testTime <= 0 || testTime > maxPredictionTime) continue;
 
-            Vec3d predictedTarget = targetPos.add(targetVel.multiply(testTime * TICKS_PER_SECOND));
+            Vec3d predictedTarget = targetPos.add(targetVel.multiply(testTime * ticksPerSecond));
             Vec3d requiredVel = calculateRequiredBallisticVelocity(origin, predictedTarget, testTime);
 
             double speedError = Math.abs(requiredVel.length() - throwSpeed);
@@ -155,46 +152,37 @@ public final class AimHelper {
         return bestError < throwSpeed * 0.4 ? bestTime : -1;
     }
 
-    /**
-     * Calculate required initial velocity for ballistic trajectory.
-     * This accounts for gravity drop over time.
-     */
+    // Calc required initial vel for our trajectory accounting for gravity
     private static Vec3d calculateRequiredBallisticVelocity(Vec3d origin, Vec3d target, double flightTimeSeconds) {
         Vec3d displacement = target.subtract(origin);
-        double flightTimeTicks = flightTimeSeconds * TICKS_PER_SECOND;
+        double flightTimeTicks = flightTimeSeconds * ticksPerSecond;
 
-        // Horizontal components (no forces acting)
+        // Horizontal components
         double vx = displacement.x / flightTimeTicks;
         double vz = displacement.z / flightTimeTicks;
 
         // Vertical component (compensate for gravity)
-        // y = v0y * t - 0.5 * g * t²
-        // Solve for v0y: v0y = (y + 0.5 * g * t²) / t
-        double vy = (displacement.y + 0.5 * GRAVITY_ACCELERATION * flightTimeTicks * flightTimeTicks) / flightTimeTicks;
+        double vy = (displacement.y + 0.5 * gravityCalc * flightTimeTicks * flightTimeTicks) / flightTimeTicks;
 
         return new Vec3d(vx, vy, vz);
     }
 
-    /**
-     * Quick check if a ballistic trajectory is physically feasible.
-     */
-    private static double calculateTrajectoryFeasibility(Vec3d origin, Vec3d target, double throwSpeed, double timeSeconds) {
+    // Checks if the trajectory is doable
+    private static double calculateTrajectoryPossibility(Vec3d origin, Vec3d target, double throwSpeed, double timeSeconds) {
         Vec3d requiredVel = calculateRequiredBallisticVelocity(origin, target, timeSeconds);
 
         double requiredSpeed = requiredVel.length();
 
-        // Higher confidence for trajectories that match our throw speed closely
+        // Higher confidence for trajectories that match throw speed closely
         return Math.min(throwSpeed, requiredSpeed) / Math.max(throwSpeed, requiredSpeed);
     }
 
-    /**
-     * Calculate ballistic-compensated assist velocity.
-     */
+    // Calc assisted velocity
     private static Vec3d calculateBallisticAssist(Vec3d origin, Vec3d originalVelocity, TargetInfo target) {
         // Calculate the ideal ballistic velocity
         Vec3d idealVelocity = calculateRequiredBallisticVelocity(origin, target.predictedPos, target.interceptTime);
 
-        // Scale ideal velocity to reasonable speed (prevent crazy fast throws)
+        // Scale ideal velocity to reasonable speed to prevent crazy throws
         double originalSpeed = originalVelocity.length();
         double idealSpeed = idealVelocity.length();
 
@@ -204,28 +192,24 @@ public final class AimHelper {
         }
 
         // Blend with confidence-based strength
-        double effectiveStrength = ASSIST_STRENGTH * target.confidence;
+        double effectiveStrength = assistStrength * target.confidence;
         return blendVelocities(originalVelocity, idealVelocity, effectiveStrength);
     }
 
-    /**
-     * Smooth velocity blending.
-     */
+    // Smooth vel blending
     private static Vec3d blendVelocities(Vec3d current, Vec3d target, double strength) {
         return current.multiply(1.0 - strength).add(target.multiply(strength));
     }
 
-    /**
-     * Target scoring with priority system.
-     */
+    // Priority system for target scoring
     private static double calculateTargetScore(TargetInfo target) {
         double baseScore = target.confidence;
 
         // Distance bonus (closer is better)
-        double distanceScore = 1.0 - (target.distance / MAX_ASSIST_DISTANCE);
+        double distanceScore = 1.0 - (target.distance / maxAssistDistance);
 
         // Angle bonus (more aligned with throw is better)
-        double angleScore = 1.0 - (target.angle / MAX_ASSIST_ANGLE);
+        double angleScore = 1.0 - (target.angle / assistViewAngle);
 
         // Target type multipliers
         double typeMultiplier = 0.7; // Default for animals, etc.
@@ -234,10 +218,7 @@ public final class AimHelper {
 
         return (baseScore + distanceScore + angleScore) / 3.0 * typeMultiplier;
     }
-
-    /**
-         * Enhanced target information.
-         */
+        // Target info
         private record TargetInfo(LivingEntity entity, Vec3d currentPos, Vec3d predictedPos, double distance, double angle,
                                   double confidence, double interceptTime) {
     }
