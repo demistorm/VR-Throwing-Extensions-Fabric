@@ -42,13 +42,10 @@ public class VRThrowingExtensions implements ModInitializer {
 				EntityType.Builder.<ThrownItemEntity>create(ThrownItemEntity::new, SpawnGroup.MISC)
 						.dimensions(0.25f, 0.25f)
 						.maxTrackingRange(64)
-						// Balanced tracking: frequent enough for smooth boomerang curves,
-						// but not so frequent as to cause network spam
 						.trackingTickInterval(5) // Update every 5 ticks = 4 times per second
-						// This provides good balance between smooth curves and network efficiency
 						.build(entityTypeKey));
 
-		/* ----------  load config first (creates file if missing) ----------- */
+		// Loads/creates config
 		ConfigHelper.initServerSide();
 
 		// Initializes server networking

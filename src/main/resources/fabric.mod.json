@@ -25,13 +25,6 @@
 			"win.demistorm.ModMenuIntegration"
 		]
 	},
-	"mixins": [
-		"vr-throwing-extensions.mixins.json",
-		{
-			"config": "vr-throwing-extensions.client.mixins.json",
-			"environment": "client"
-		}
-	],
 	"depends": {
 		"fabricloader": ">=0.16.14",
 		"minecraft": "~1.21.5",

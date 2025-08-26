@@ -39,14 +39,11 @@ public class ThrowHelper {
     private static final double speedThreshold          = 0.10; // How fast you can move your arm before canceling block breaking
     private static final double throwVelocityThreshold  = 0.06; // Min velocity to activate throw
 
-    // NEW: Velocity curve system - easily tunable multipliers
-    private static final double WEAK_VELOCITY_THRESHOLD   = 0.06;  // Weak throw boundary
-    private static final double MEDIUM_VELOCITY_THRESHOLD = 0.20;  // Medium throw boundary
-    private static final double STRONG_VELOCITY_THRESHOLD = 0.35;  // Strong throw boundary
-
-    private static final double WEAK_MULTIPLIER   = 3.5;  // Multiplier for weak throws
-    private static final double MEDIUM_MULTIPLIER = 6.0;  // Multiplier for medium throws
-    private static final double STRONG_MULTIPLIER = 8.0;  // Multiplier for strong throws
+    // Velocity multiplier curve tunables
+    private static final double weakVelThreshold = 0.06;        // Vel around this will be considered "weak"
+    private static final double strongVelThreshold = 0.35;      // Vel around this will be considered "strong"
+    private static final double weakMultiplier = 3.5;           // Multiplier for weak throws
+    private static final double strongMultiplier = 8.0;         // Multiplier for strong throws
 
     // Catching tunables
     private static final double catchMaxDistance        = 3.0;  // Max distance to start catching (in blocks)
@@ -86,7 +83,7 @@ public class ThrowHelper {
                 return; // Skip throwing logic if catching is active
             }
 
-            // When Attack/Destroy is pressed, Start Tracking
+            // When Attack/Destroy is pressed, start Tracking
             if (!active && attackPressed) {
                 ItemStack held = player.getMainHandStack();
                 if (ModCompat.throwingDisabled(held)) return;
@@ -102,12 +99,12 @@ public class ThrowHelper {
                 Vec3d playerPos = player.getPos();
 
                 // Activates throw states
-                relativeStartPoint = handWorldPos.subtract(playerPos); // NEW: Relative position
+                relativeStartPoint = handWorldPos.subtract(playerPos); // Relative start point for distance tracking
                 heldItem = held.copy();
                 ticksHeld = 0;
                 active = true;
                 throwWholeStack = placePressed;    // Throws the whole stack if pressed
-                cancelBreaking = false;           // Doesn't cancel breaking until speed is too fast
+                cancelBreaking = false;            // Doesn't cancel breaking until speed is too fast
                 log.debug("[VR Throw] Hold trace started with item: {} at relative pos: {}", heldItem, relativeStartPoint);
             }
 
@@ -130,24 +127,23 @@ public class ThrowHelper {
             }
 
             // Released Attack/Destroy, sends throw packet
-            // Simple fix: Keep your original logic, just make movement and velocity checks relative
             else if (active) {
                 if (ticksHeld >= 5) {
                     VRPoseHistory history = VRAPI.instance().getHistoricalVRPoses(player);
                     if (history != null) {
                         int usedTicks = Math.min(ticksHeld, maxPoseHistoryTicks);
 
-                        // Calculate current relative position (your working code)
+                        // Calculate current relative position
                         Vec3d currentHandPos = history.averagePosition(VRBodyPart.MAIN_HAND, usedTicks);
                         Vec3d currentPlayerPos = player.getPos();
                         assert currentHandPos != null;
                         Vec3d currentRelativePos = currentHandPos.subtract(currentPlayerPos);
 
-                        // Check relative movement (your working code)
+                        // Check relative movement
                         double relativeMovedDist = relativeStartPoint.distanceTo(currentRelativePos);
 
                         if (relativeMovedDist > minThrowDistance) {
-                            // SIMPLE FIX: Just subtract horizontal player movement from velocity
+                            // Subtract horizontal movement from velocity
                             Vec3d rawHandVel = history.averageVelocity(VRBodyPart.MAIN_HAND, usedTicks);
                             Vec3d playerHorizontalVel = new Vec3d(player.getVelocity().x, 0, player.getVelocity().z);
                             assert rawHandVel != null;
@@ -156,13 +152,12 @@ public class ThrowHelper {
                             double velLength = relativeVel.length();
 
                             if (velLength >= throwVelocityThreshold) {
-                                // All your existing throw code unchanged...
                                 Vec3d origin = historicalHandPosition(history);
                                 double dynamicMultiplier = calculateVelocityMultiplier(velLength);
                                 Vec3d launchVel = relativeVel.multiply(dynamicMultiplier);
                                 Vec3d assistedVel = AimHelper.applyAimAssist(player, origin, launchVel);
 
-                                // Hand rotation (unchanged)
+                                // Hand rotation
                                 VRPose pose = VRClientAPI.instance().getPreTickWorldPose();
                                 assert pose != null;
                                 VRBodyPartData hand = pose.getHand(Hand.MAIN_HAND);
@@ -175,8 +170,10 @@ public class ThrowHelper {
                                 float rollRad = projCtrlUp.angleSigned(projWorldUp, fwd);
                                 float rollDeg = (float) Math.toDegrees(rollRad);
 
+                                // Send throw to server
                                 ClientNetworkHelper.sendToServer(origin, assistedVel, throwWholeStack, rollDeg);
 
+                                // DEBUG
                                 if (VRThrowingExtensions.debugMode) {
                                     boolean aimAssistApplied = !assistedVel.equals(launchVel);
                                     player.sendMessage(Text.literal(
@@ -213,36 +210,25 @@ public class ThrowHelper {
         }
     }
 
-    // NEW: Dynamic velocity multiplier with smooth curve
-    /**
-     * Calculates velocity multiplier based on throw strength using a smooth curve.
-     * Weak throws get lower multipliers, strong throws get higher multipliers.
-     * Uses efficient quadratic interpolation between defined breakpoints.
-     */
+    // Dynamic velocity multiplier with smooth curve
     private static double calculateVelocityMultiplier(double velocity) {
-        // Handle boundary cases
-        if (velocity <= WEAK_VELOCITY_THRESHOLD) {
-            return WEAK_MULTIPLIER;
-        } else if (velocity >= STRONG_VELOCITY_THRESHOLD) {
-            return STRONG_MULTIPLIER;
+        // Below weak threshold → always weak multiplier
+        if (velocity <= weakVelThreshold) {
+            return weakMultiplier;
+        }
+        // Above strong threshold counts as a strong throw, not any stronger
+        if (velocity >= strongVelThreshold) {
+            return strongMultiplier;
         }
 
-        // Determine which curve segment we're in
-        if (velocity <= MEDIUM_VELOCITY_THRESHOLD) {
-            // Weak to Medium range - smooth interpolation
-            double t = (velocity - WEAK_VELOCITY_THRESHOLD) /
-                    (MEDIUM_VELOCITY_THRESHOLD - WEAK_VELOCITY_THRESHOLD);
-            // Simple quadratic curve for natural feel: t² provides smooth acceleration
-            t = t * t;
-            return WEAK_MULTIPLIER + t * (MEDIUM_MULTIPLIER - WEAK_MULTIPLIER);
-        } else {
-            // Medium to Strong range - smooth interpolation
-            double t = (velocity - MEDIUM_VELOCITY_THRESHOLD) /
-                    (STRONG_VELOCITY_THRESHOLD - MEDIUM_VELOCITY_THRESHOLD);
-            // Quadratic curve
-            t = t * t;
-            return MEDIUM_MULTIPLIER + t * (STRONG_MULTIPLIER - MEDIUM_MULTIPLIER);
-        }
+        // Interpolate between weak and strong
+        double t = (velocity - weakVelThreshold) /
+                (strongVelThreshold - weakVelThreshold);
+
+        // Quadratic curve for a natural ramp
+        t = t * t;
+
+        return weakMultiplier + t * (strongMultiplier - weakMultiplier);
     }
 
     // Handles catching logic, returns true if catching is active and blocks throwing logic
@@ -307,7 +293,7 @@ public class ThrowHelper {
         return catchActive;
     }
 
-    // Finds the nearest Thrown Item within catch range
+    // Finds the nearest thrown item within catch range
     private static ThrownItemEntity findNearestProjectile(ClientPlayerEntity player, Vec3d handPos) {
         Box searchBox = Box.of(handPos, catchMaxDistance * 2, catchMaxDistance * 2, catchMaxDistance * 2);
 
@@ -339,10 +325,10 @@ public class ThrowHelper {
         double distance = toHand.length();
 
         if (distance > 0.001) {
-            // Apply magnetizing force
-            Vec3d magnetForce = toHand.normalize().multiply(catchMagnetStrength);
+            // Apply magnetizing effect
+            Vec3d magnetEffect = toHand.normalize().multiply(catchMagnetStrength);
             Vec3d currentVel = targetProjectile.getVelocity();
-            Vec3d newVel = currentVel.multiply(0.6).add(magnetForce); // Blend with current velocity
+            Vec3d newVel = currentVel.multiply(0.6).add(magnetEffect); // Blend with current velocity
 
             // Send updated velocity to server
             ClientNetworkHelper.sendCatchUpdateToServer(targetProjectile, newVel, handRotation);
@@ -393,7 +379,7 @@ public class ThrowHelper {
         catchTicksHeld = 0;
     }
 
-    // Enhanced reset to include new tracking variables
+    // Resets throw variables
     private static void reset() {
         active = false;
         throwWholeStack = false;

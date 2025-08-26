@@ -5,26 +5,23 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
-/**
- * Pure glue: hooks up the S2C packet and the disconnect event.
- * Lives in the client source-set so it may import the client networking API.
- */
+// Bridges the server config networking wiht the client
 @Environment(EnvType.CLIENT)
 public final class ClientConfigHelper {
     private ClientConfigHelper() {}
 
     public static void init() {
-        // local file (single-player) first
+        // Local singleplayer config file
         ConfigHelper.loadOrCreateClientConfig();
 
-        // handle the sync packet
+        // Handle the sync packet
         ClientPlayNetworking.registerGlobalReceiver(
                 ConfigHelper.SyncPayload.ID,
                 (payload, context) ->
                         ConfigHelper.clientReceivedRemote(payload.json())
         );
 
-        // restore the local copy when leaving the server
+        // Restore the local copy when leaving the server
         ClientPlayConnectionEvents.DISCONNECT.register(
                 (handler, client) -> ConfigHelper.clientDisconnected()
         );

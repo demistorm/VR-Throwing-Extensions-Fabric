@@ -22,17 +22,17 @@ public final class AimHelper {
     private static final double assistStrength = 0.5;
     private static final double maxPredictionTime = 2.5;
 
-    // Minecraft physics constants
     /*
-    gravityCalc was set to 0.04 however based on my research it should be more like 0.9? That did not work,
+    Had gravityCalc set to 0.04 however based on my research it should be more like 0.9? That did not work,
     am trying something more modest like a 50% bump up to 0.06.
 
     Testing for 0.04. RESULT = Works somewhat effectively, does not handle vertical great, but otherwise mostly works.
     Testing for 0.9 needed. RESULT = Oh goodness no. You have to totally throw not at the target and then it will
-    activate and you will never ever find your sword again  (RIP Netheritey)
-    Testing for 0.06. RESULT = Seems pretty decent, not too different from 0.04 but of vibes I think it is better
+    activate and you will never ever find your sword again  (RIP Netheritey).
+    Testing for 0.06. RESULT = Seems pretty decent, not too different from 0.04 but off vibes I think it is better.
      */
-    private static final double gravityCalc = 0.06; // blocks/tick² (roughly matches Minecraft gravity)
+    // Minecraft physics constants
+    private static final double gravityCalc = 0.06; // blocks/tick squared
     private static final double ticksPerSecond = 20.0;
 
     // Applies aim assist

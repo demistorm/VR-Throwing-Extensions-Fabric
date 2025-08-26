@@ -16,7 +16,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 
-// Enhanced renderer with smoother interpolation for boomerang effects
+// Renders the thrown item projectile for the client
 @Environment(EnvType.CLIENT)
 public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownItemRenderer.ThrownItemRenderState> {
     private final ItemRenderer itemRenderer;
@@ -55,7 +55,7 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         // Get velocity for direction calculation
         Vec3d vel = state.velocity;
 
-        // Enhanced rotation calculation with better interpolation
+        // Rotation calculation
         if (vel.length() > 0.001) {
             // Calculate yaw (horizontal rotation)
             float yaw = (float)(MathHelper.atan2(vel.z, vel.x) * 180.0 / Math.PI);
@@ -70,9 +70,9 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
             matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-state.handRollDeg));
         }
 
-        // Enhanced spinning behavior based on state
+        // Spinning behavior based on state
         if (state.isCatching) {
-            // Slower, smoother rotation while being caught
+            // Slower rotation while being caught
             float smoothSpin = (state.age * 5.0F) % 360F;
             matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(smoothSpin));
 
@@ -80,16 +80,16 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
             float bobOffset = MathHelper.sin(state.age * 0.5F) * 0.05F;
             matrices.translate(0, bobOffset, 0);
         } else if (state.isBounceActive) {
-            // Special rotation for boomerang return flight
-            // Smoother, more controlled spinning that suggests return trajectory
+            // Rotation for boomerang return flight
+            // More controlled spinning that suggests return trajectory
             float returnSpin = (state.age * 8.0F) % 360F; // Medium speed spin
             matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(returnSpin));
 
-            // Add subtle wobble to suggest the curved flight path
+            // Add subtle wobble
             float wobble = MathHelper.sin(state.age * 0.35F) * 3.0F;
             matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(wobble));
 
-            // Slight pulsing scale effect for visual feedback
+            // Slight pulsing scale effect
             float pulseScale = 1.0F + MathHelper.sin(state.age * 0.4F) * 0.05F;
             matrices.scale(pulseScale, pulseScale, pulseScale);
         } else {
@@ -124,6 +124,6 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         public float age = 0.0f;
         public float handRollDeg = 0f;
         public boolean isCatching = false;
-        public boolean isBounceActive = false; // New field for boomerang state
+        public boolean isBounceActive = false;
     }
 }

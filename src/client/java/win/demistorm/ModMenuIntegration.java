@@ -8,10 +8,7 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
-/**
- * A super-small Cloth-Config screen that exposes the one Boolean value.
- */
-// No Cloth-Config imports needed
+// Mod Menu config integration, class is pretty self-explanatory
 public final class ModMenuIntegration implements ModMenuApi {
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
@@ -30,7 +27,7 @@ public final class ModMenuIntegration implements ModMenuApi {
 
         @Override
         protected void init() {
-            // Boomerang toggle button (centered horizontally, positioned in upper-middle vertically)
+            // Boomerang toggle button
             addDrawableChild(
                     ButtonWidget.builder(
                                     Text.literal("Weapon Boomerang: " + (boomerangValue ? "ON" : "OFF")),
@@ -45,7 +42,7 @@ public final class ModMenuIntegration implements ModMenuApi {
                                     "entity. Remember to catch it or it might hurt!")))
                             .build());
 
-            // Aim assist toggle button (below boomerang, same centering)
+            // Aim assist toggle button (below boomerang)
             addDrawableChild(
                     ButtonWidget.builder(
                                     Text.literal("Aim Assist: " + (aimAssistValue ? "ON" : "OFF")),
@@ -54,12 +51,12 @@ public final class ModMenuIntegration implements ModMenuApi {
                                         btn.setMessage(Text.literal(
                                                 "Aim Assist: " + (aimAssistValue ? "ON" : "OFF")));
                                     })
-                            .dimensions(width / 2 - 70, height / 4 + 54, 140, 20)  // +30px spacing for readability
+                            .dimensions(width / 2 - 70, height / 4 + 54, 140, 20)
                             .tooltip(Tooltip.of(Text.literal("Enables/disables a light aim correction effect, " +
                                     "bridging the gap between the controllers and your real intentions.")))
                             .build());
 
-            // Done button (bottom-center, wider like Minecraft native)
+            // Done button (bottom-center)
             addDrawableChild(
                     ButtonWidget.builder(Text.literal("Done"),
                                     btn -> {
@@ -82,9 +79,9 @@ public final class ModMenuIntegration implements ModMenuApi {
 
         @Override
         public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-            renderBackground(context, mouseX, mouseY, delta);  // Standard blurred background
+            renderBackground(context, mouseX, mouseY, delta);
             super.render(context, mouseX, mouseY, delta);
-            // Render title at top-center (large, white text with shadow, like MC options)
+            // Render title at top-center
             context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 20, 0xFFFFFF);
         }
 

@@ -15,30 +15,29 @@ public final class BoomerangEffect {
     // Base return speed
     public static final double baseReturnSpeed = 1.00;
 
-    // Distance-based speed scaling (same as your original)
+    // Distance-based speed scaling
     public static final double closeDistance = 3.0;
     public static final double farDistance = 25.0;
     public static final double closeSpeedMultiplier = 0.3;
     public static final double farSpeedMultiplier = 2.0;
     public static final double scalingCurve = 1.2;
 
-    // New: arc/curve parameters (tune these)
-    // How big the initial curve offset should be (as a fraction of throw distance)
-    public static final double arcGain = 0.6;     // 0.2..0.6 typical, was 0.35
-    public static final double arcMin = 0.8;       // min offset in blocks
-    public static final double arcMax = 6.0;       // max offset in blocks
+    // Return arc tunables
+    public static final double arcGain = 0.6;      // Roughly how big the arc should be
+    public static final double arcMin = 0.8;       // Min offset in blocks
+    public static final double arcMax = 6.0;       // Max offset in blocks
 
-    // How quickly the offset collapses back to the origin each server step (~5 ticks)
-    public static final double arcDecayPerStep = 0.80; // 0.80 more dramatic, 0.95 more gentle
+    // How quickly the offset collapses back to the origin each server step (5 ticks atm)
+    public static final double arcDecayPerStep = 0.80; // Higher is gentler, lower is more dramatic (C vs V)
 
-    // How sharply we can turn toward the current target per server step (radians)
-    public static final double maxTurnRateNear = Math.toRadians(30); // within ~8 blocks
-    public static final double maxTurnRateFar  = Math.toRadians(55); // when far away
+    // How sharply projectile can turn toward the current target per server step
+    public static final double maxTurnRateNear = Math.toRadians(30); // Within about 8 blocks
+    public static final double maxTurnRateFar  = Math.toRadians(55); // When far away
 
-    // Extra lateral boost at startup so the arc is immediately visible
-    public static final double lateralStartBoost = 0.35; // portion of bounce speed to inject laterally
+    // Lateral boost at bounce so the arc is immediately visible
+    public static final double lateralStartBoost = 0.35; // Portion of bounce speed to inject immediately
 
-    // Damping and speed clamping (coarse-tick friendly)
+    // Damping and speed clamping
     public static final double dampFactor = 0.95;
     public static final double maxOverTarget = 1.6;
     public static final double minUnderTarget = 0.45;
@@ -71,45 +70,39 @@ public final class BoomerangEffect {
 
         Vec3d dir = toOrigin.normalize();
 
-        // Roll in radians (bank angle), controls curve plane
+        // Roll, controls curve plane
         double rollRad = Math.toRadians(proj.getHandRoll());
 
-        // Build a frame aligned to the current direction, with a "rolled up"
-        // - worldUp rotated around dir by rollRad
+        // Rotate the projectile based on roll to arc back the way it was thrown sorta
         Vec3d worldUp = new Vec3d(0, 1, 0);
         Vec3d upRolled = rotateAroundAxis(worldUp, dir, rollRad);
-        // Make sure "upRolled" is perpendicular to dir (project out any component along dir)
-        Vec3d upProj = projectPerp(upRolled, dir);      // vertical-ish curve axis (when roll ~ 0)
-        Vec3d right  = dir.crossProduct(upRolled).normalize(); // horizontal-ish curve axis (when roll ~ 90°)
+        // Make sure upRolled is perpendicular to dir (project out any component along dir)
+        Vec3d upProj = projectPerp(upRolled, dir);      // Vertical-ish curve axis (when roll ~ 0)
+        Vec3d right  = dir.crossProduct(upRolled).normalize(); // Horizontal-ish curve axis (when roll ~ 90°)
 
-        // Blend vertical vs horizontal curve direction using roll:
-        // - roll 0° -> prefer upProj (vertical arc)
-        // - roll 90° -> prefer right (horizontal arc)
+        // Blend vertical and horzontal direciton based on roll
         double cosR = Math.cos(rollRad);
         double sinR = Math.sin(rollRad);
         Vec3d curveDir = upProj.multiply(cosR).add(right.multiply(sinR)).normalize();
 
-        // NEW –- choose which side to curve on and store plane + mag
-        // decide if we want the “inverse” side.  Here I’m flipping
-        // whenever the roll is positive; change the condition to anything
-        // you like (spin direction, hit face, random, …)
+        // Flips return arc direction (swap < and >), currently have it so that it returns the way it was thrown *shrug*
         proj.bounceInverse = proj.getHandRoll() < 0.0f;
 
-        // plane normal is dir × curveDir  (fixed for the whole flight)
+        // Plane normal is dir × curveDir (fixed for the whole flight)
         Vec3d planeNormal = dir.crossProduct(curveDir).normalize();
         if (proj.bounceInverse)            // optional mirror
             planeNormal = planeNormal.multiply(-1);
 
         double arcMag = MathHelper.clamp(distanceToOrigin * arcGain, arcMin, arcMax);
 
-        proj.bouncePlaneNormal = planeNormal; // << new fixed normal
-        proj.bounceArcMag      = arcMag;      // << magnitude that will decay
+        proj.bouncePlaneNormal = planeNormal;
+        proj.bounceArcMag      = arcMag;
 
-        // Speed at start
+        // Start speed
         double speedMultiplier = calculateSpeedMultiplier(distanceToOrigin);
         double bounceSpeed = baseReturnSpeed * speedMultiplier;
 
-        // Inject lateral velocity to immediately show the curve
+        // Add lateral velocity to immediately show the curve
         Vec3d baseVel = dir.multiply(bounceSpeed);
         Vec3d lateralVel = curveDir.multiply(bounceSpeed * lateralStartBoost);
         Vec3d finalVel = baseVel.add(lateralVel).add(0, 0.02, 0); // small up bias
@@ -123,6 +116,7 @@ public final class BoomerangEffect {
                     0.6f, 1.5f);
         }
 
+        // DEBUG
         VRThrowingExtensions.log.debug(
                 "[Boomerang] Projectile {} started return. Dist={}. Roll={}°, Speed={} (mult={}), ArcMag={}",
                 proj.getId(), String.format("%.2f", distanceToOrigin),
@@ -133,7 +127,7 @@ public final class BoomerangEffect {
         );
     }
 
-    // Returns true when we should finish the return (reached/overshot)
+    // Returns true when return is finished
     public static boolean tickReturn(ThrownItemEntity proj) {
         Vec3d currentPos = proj.getPos();
         Vec3d toOrigin = proj.originalThrowPos.subtract(currentPos);
@@ -161,10 +155,10 @@ public final class BoomerangEffect {
             return true;
         }
 
-        // Decaying arc target: steer toward origin + offset
+        // Decaying arc target (steer toward origin + offset)
         Vec3d target = proj.originalThrowPos.add(proj.bounceCurveOffset);
 
-        // Compute steering toward the decaying target
+        // Calc steering toward the decaying target
         Vec3d toTarget = target.subtract(currentPos);
         double distance = toTarget.length();
         if (distance < 0.0001) {
@@ -174,11 +168,11 @@ public final class BoomerangEffect {
 
         Vec3d currentVel = proj.getVelocity();
 
-        // Distance-based speed target (same as initial)
+        // Distance-based speed target
         double speedMultiplier = calculateSpeedMultiplier(Math.sqrt(distSq));
         double targetSpeed = baseReturnSpeed * speedMultiplier;
 
-        // Turn towards the target with a capped turn rate (coarse tick friendly)
+        // Turn towards the target with a capped turn rate
         double turnRate = MathHelper.lerp(
                 MathHelper.clamp((float)(distance / farDistance), 0.0f, 1.0f),
                 maxTurnRateNear,
@@ -186,7 +180,7 @@ public final class BoomerangEffect {
         );
         Vec3d turned = turnTowards(currentVel, wantDir, turnRate);
 
-        // Damp and clamp speeds
+        // Clamp and damp speeds
         Vec3d newVel = turned.multiply(dampFactor);
         double newSpeed = newVel.length();
         double maxSpeed = targetSpeed * maxOverTarget;
@@ -200,8 +194,7 @@ public final class BoomerangEffect {
 
         proj.setVelocity(newVel);
 
-        // Collapse the arc offset as we get closer so we "home in" at the end
-        // Collapse faster when near
+        // Collapse faster when near (so it swings back into the player's hand sorta)
         double nearFactor = MathHelper.clamp(1.0 - (distance / farDistance), 0.0, 0.8);
         double decay = MathHelper.lerp(nearFactor, arcDecayPerStep, arcDecayPerStep * 0.75);
         proj.bounceCurveOffset = proj.bounceCurveOffset.multiply(decay);
@@ -216,7 +209,7 @@ public final class BoomerangEffect {
         return false;
     }
 
-    // Speed multiplier curve (unchanged)
+    // Speed multiplier curve
     private static double calculateSpeedMultiplier(double distance) {
         if (distance <= closeDistance) return closeSpeedMultiplier;
         if (distance >= farDistance)   return farSpeedMultiplier;
@@ -226,7 +219,7 @@ public final class BoomerangEffect {
         return MathHelper.lerp((float)t, (float)closeSpeedMultiplier, (float)farSpeedMultiplier);
     }
 
-    // Rotate vector 'v' around 'axis' by 'angle' radians (Rodrigues)
+    // Rotate vector v around axis by angle radians
     private static Vec3d rotateAroundAxis(Vec3d v, Vec3d axis, double angle) {
         Vec3d k = axis.normalize();
         double cos = Math.cos(angle);
@@ -240,13 +233,13 @@ public final class BoomerangEffect {
         return term1.add(term2).add(term3);
     }
 
-    // Project vector 'v' onto plane perpendicular to 'normal'
+    // Project vector v onto plane perpendicular to normal
     private static Vec3d projectPerp(Vec3d v, Vec3d normal) {
         double d = v.dotProduct(normal);
         return v.subtract(normal.multiply(d)).normalize();
     }
 
-    // Turn the velocity vector toward a direction by at most maxAngle (keeps magnitude)
+    // Turn the velocity vector toward a direction by at most maxAngle (keeping magnitude)
     private static Vec3d turnTowards(Vec3d currentVel, Vec3d wantDir, double maxAngle) {
         double speed = currentVel.length();
         if (speed < 1e-6) {
@@ -262,7 +255,7 @@ public final class BoomerangEffect {
         // Rotate curDir toward wantDir by maxAngle around the rotation axis
         Vec3d axis = curDir.crossProduct(wantDir);
         if (axis.lengthSquared() < 1e-9) {
-            // Parallel or anti-parallel; just lerp directions
+            // Parallel or anti-parallel, just lerp directions
             Vec3d turnDir = curDir.multiply(1.0 - 1e-3).add(wantDir.multiply(1e-3)).normalize();
             return turnDir.multiply(speed);
         }

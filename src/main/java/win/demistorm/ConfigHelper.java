@@ -14,18 +14,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Loads / saves a tiny json config and synchronises the server copy to
- * every connecting client.
- * Only one flag is stored for now – “boomerangEffect”.
- */
+// Loads/saves json config and synchronises server config to connected clients
 public final class ConfigHelper {
-    /* ------------------------------------------------------------ */
-    /*  DATA                                                         */
-    /* ------------------------------------------------------------ */
+
+    // Toggles
     public static final class Data {
-        public boolean boomerangEffect = true;
-        public boolean aimAssist = true; // New: aim assist toggle (on by default)
+        public boolean boomerangEffect = true; // On by default
+        public boolean aimAssist = true;       // On by default
     }
 
     public static final Identifier CHANNEL =
@@ -35,22 +30,20 @@ public final class ConfigHelper {
     private static final Path  CONFIGDIR = Path.of("config");
     private static final Path  FILE      = CONFIGDIR.resolve("vr-throwing-extensions.json");
 
-    /** client-side local copy (never overwritten by server) */
+    // Client singleplayer config
     public static final Data CLIENT      = new Data();
-    /** the server copy currently in use on this logical side          */
-    public static final Data ACTIVE      = new Data();        // replaced while on server
+    // Server config copy while playing on a server
+    public static final Data ACTIVE      = new Data(); // Replaced while playing on a server
 
-    /* ------------------------------------------------------------ */
-    /*  SERIALISATION                                                */
-    /* ------------------------------------------------------------ */
+    // Serialization
     private static String toJson(Data d)      { return GSON.toJson(d); }
     private static Data   fromJson(String js) { return GSON.fromJson(js, Data.class); }
 
+    // Loads/creates server config
     public static void loadOrCreateServerConfig() {
         Data d = read();
-        write(d);                     // guarantees pretty file exists
+        write(d);                     // Makes sure file exists
         copyInto(d, ACTIVE);
-        copyInto(d, SERVER_SHADOW);   // keeps an untouched reference
     }
 
     public static void loadOrCreateClientConfig() {
@@ -60,9 +53,6 @@ public final class ConfigHelper {
         copyInto(CLIENT, ACTIVE);
     }
 
-    /* ------------------------------------------------------------ */
-    /*  FILE IO                                                      */
-    /* ------------------------------------------------------------ */
     private static Data read() {
         try {
             if (Files.exists(FILE))
@@ -85,10 +75,7 @@ public final class ConfigHelper {
         to.aimAssist = from.aimAssist;
     }
 
-    /* ------------------------------------------------------------ */
-    /*  NETWORK  (server→client)                                     */
-    /* ------------------------------------------------------------ */
-    // payload is kept inside this helper to avoid the need for an extra class
+    // Sends networking data to client
     public record SyncPayload(String json) implements CustomPayload {
         public static final Id<SyncPayload> ID = new Id<>(CHANNEL);
         public static final PacketCodec<RegistryByteBuf, SyncPayload> CODEC =
@@ -97,41 +84,32 @@ public final class ConfigHelper {
     }
 
     static {
-        /* Tell networking about the packet on BOTH sides */
         PayloadTypeRegistry.playS2C().register(SyncPayload.ID, SyncPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(SyncPayload.ID, SyncPayload.CODEC); // (never sent C2S)
+        PayloadTypeRegistry.playC2S().register(SyncPayload.ID, SyncPayload.CODEC);
     }
 
-    /* ------------------------------------------------------------ */
-    /*  REGISTRATION HOOKS                                           */
-    /* ------------------------------------------------------------ */
+    // Registration hooks
     public static void initServerSide() {
-        // 1) load file
+        // Load File
         loadOrCreateServerConfig();
 
-        // 2) send to every joining player
+        // Send to every joining player
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 sender.sendPacket(new SyncPayload(toJson(ACTIVE)))
         );
 
-        // 3) save on server stop in case somebody /reloaded etc.
+        // Save on server stop in case of reload or shutdown
         ServerLifecycleEvents.SERVER_STOPPING.register(s->write(ACTIVE));
     }
 
-    /** called from the client helper once it has the packet in hand */
+    // Hears that the client recieved the config
     static void clientReceivedRemote(String json) {
         copyInto(fromJson(json), ACTIVE);
         VRThrowingExtensions.log.debug("Received remote config: {}", json);
     }
 
-    /** called on disconnect – again by the client helper */
+    // Tells when the client disconnects
     static void clientDisconnected() {
         copyInto(CLIENT, ACTIVE);
     }
-
-    /* ------------------------------------------------------------ */
-    /*  INTERNALS                                                    */
-    /* ------------------------------------------------------------ */
-    private static final Data SERVER_SHADOW = new Data(); // for future use/debug
-
 }
