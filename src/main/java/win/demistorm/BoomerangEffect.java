@@ -13,13 +13,13 @@ import java.util.Set;
 
 public final class BoomerangEffect {
     // Base return speed
-    public static final double baseReturnSpeed = 0.30;
+    public static final double baseReturnSpeed = 1.00;
 
     // Distance-based speed scaling (same as your original)
     public static final double closeDistance = 3.0;
     public static final double farDistance = 25.0;
-    public static final double closeSpeedMultiplier = 0.5;
-    public static final double farSpeedMultiplier = 1.8;
+    public static final double closeSpeedMultiplier = 0.3;
+    public static final double farSpeedMultiplier = 2.0;
     public static final double scalingCurve = 1.2;
 
     // New: arc/curve parameters (tune these)
@@ -29,7 +29,7 @@ public final class BoomerangEffect {
     public static final double arcMax = 6.0;       // max offset in blocks
 
     // How quickly the offset collapses back to the origin each server step (~5 ticks)
-    public static final double arcDecayPerStep = 0.88; // 0.80 more dramatic, 0.95 more gentle
+    public static final double arcDecayPerStep = 0.80; // 0.80 more dramatic, 0.95 more gentle
 
     // How sharply we can turn toward the current target per server step (radians)
     public static final double maxTurnRateNear = Math.toRadians(30); // within ~8 blocks
