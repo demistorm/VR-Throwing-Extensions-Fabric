@@ -2,7 +2,6 @@ package win.demistorm;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.network.RegistryByteBuf;
@@ -42,7 +41,9 @@ public final class ConfigHelper {
     // Loads/creates server config
     public static void loadOrCreateServerConfig() {
         Data d = read();
-        write(d);                     // Makes sure file exists
+        if (!Files.exists(FILE)) {
+            write(d); // Create file with defaults only if it doesn't exist
+        }
         copyInto(d, ACTIVE);
     }
 
@@ -97,9 +98,6 @@ public final class ConfigHelper {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 sender.sendPacket(new SyncPayload(toJson(ACTIVE)))
         );
-
-        // Save on server stop in case of reload or shutdown
-        ServerLifecycleEvents.SERVER_STOPPING.register(s->write(ACTIVE));
     }
 
     // Hears that the client recieved the config

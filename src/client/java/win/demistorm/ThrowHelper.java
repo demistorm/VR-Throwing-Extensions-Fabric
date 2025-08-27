@@ -41,7 +41,7 @@ public class ThrowHelper {
 
     // Velocity multiplier curve tunables
     private static final double weakVelThreshold = 0.06;        // Vel around this will be considered "weak"
-    private static final double strongVelThreshold = 0.35;      // Vel around this will be considered "strong"
+    private static final double strongVelThreshold = 0.30;      // Vel around this will be considered "strong"
     private static final double weakMultiplier = 3.5;           // Multiplier for weak throws
     private static final double strongMultiplier = 8.0;         // Multiplier for strong throws
 

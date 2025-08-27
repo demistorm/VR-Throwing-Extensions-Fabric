@@ -38,7 +38,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public Vec3d bounceCurveOffset = Vec3d.ZERO;
     public Vec3d bouncePlaneNormal = Vec3d.ZERO;
     public double bounceArcMag = 0.0;
-    public boolean bounceInverse = false;           // Inverts the bounce direction
+    public boolean bounceInverse = true;           // Inverts the bounce direction
 
     public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, World world) {
         super(type, world);
