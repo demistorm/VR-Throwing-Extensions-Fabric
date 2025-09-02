@@ -32,7 +32,7 @@ public class VRThrowingExtensions implements ModInitializer {
 	public void onInitialize() {
 		log.info("VR Throwing Extensions (SERVER) starting!");
 
-		// Register entity type
+		// Register entity type with improved tracking settings
 		RegistryKey<EntityType<?>> entityTypeKey = RegistryKey.of(RegistryKeys.ENTITY_TYPE,
 				Identifier.of(MOD_ID, "generic_thrown_item"));
 
@@ -42,8 +42,11 @@ public class VRThrowingExtensions implements ModInitializer {
 				EntityType.Builder.<ThrownItemEntity>create(ThrownItemEntity::new, SpawnGroup.MISC)
 						.dimensions(0.25f, 0.25f)
 						.maxTrackingRange(64)
-						.trackingTickInterval(10) // Updates every 10 ticks, seems smoother than 2 or 1?
+						.trackingTickInterval(5) // Update every 5 ticks = 4 times per second
 						.build(entityTypeKey));
+
+		// Loads/creates config
+		ConfigHelper.initServerSide();
 
 		// Initializes server networking
 		NetworkHelper.initServer();

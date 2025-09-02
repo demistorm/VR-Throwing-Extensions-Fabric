@@ -8,7 +8,7 @@
 		"Halfstorm"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
+		"homepage": "https://github.com/demistorm/VR-Throwing-Extensions-Fabric",
 		"sources": "https://github.com/demistorm/VR-Throwing-Extensions-Fabric"
 	},
 	"license": "GPL-3.0",
@@ -20,15 +20,11 @@
 		],
 		"client": [
 			"win.demistorm.VRThrowingExtensionsClient"
+		],
+		"modmenu": [
+			"win.demistorm.ModMenuIntegration"
 		]
 	},
-	"mixins": [
-		"vr-throwing-extensions.mixins.json",
-		{
-			"config": "vr-throwing-extensions.client.mixins.json",
-			"environment": "client"
-		}
-	],
 	"depends": {
 		"fabricloader": ">=0.16.14",
 		"minecraft": "~1.21.5",
@@ -36,6 +32,6 @@
 		"fabric-api": "*"
 	},
 	"suggests": {
-		"another-mod": "*"
+		"modmenu": "*"
 	}
 }

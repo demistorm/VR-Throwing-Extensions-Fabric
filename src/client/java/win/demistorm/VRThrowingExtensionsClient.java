@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.util.ActionResult;
 import org.vivecraft.api.client.VRClientAPI;
-
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Client mod initializer
@@ -16,6 +15,8 @@ public class VRThrowingExtensionsClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		log.info("VR Throwing Extensions (CLIENT) starting!");
+		// Load config
+		ClientConfigHelper.init();
 		// Register the throwing tracker (replaces init and client tick event)
 		registerTracker();
 		// Well you can see what this does, it's right under here
