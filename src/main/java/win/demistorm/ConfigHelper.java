@@ -8,7 +8,6 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

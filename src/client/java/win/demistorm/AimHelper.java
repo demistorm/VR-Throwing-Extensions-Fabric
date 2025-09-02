@@ -7,10 +7,8 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.MathHelper;
-
 import java.util.List;
 import java.util.Optional;
-
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Aim assist joys
@@ -22,16 +20,8 @@ public final class AimHelper {
     private static final double assistStrength = 0.5;
     private static final double maxPredictionTime = 2.5;
 
-    /*
-    Had gravityCalc set to 0.04 however based on my research it should be more like 0.9? That did not work,
-    am trying something more modest like a 50% bump up to 0.06.
-
-    Testing for 0.04. RESULT = Works somewhat effectively, does not handle vertical great, but otherwise mostly works.
-    Testing for 0.9 needed. RESULT = Oh goodness no. You have to totally throw not at the target and then it will
-    activate and you will never ever find your sword again  (RIP Netheritey).
-    Testing for 0.06. RESULT = Seems pretty decent, not too different from 0.04 but off vibes I think it is better.
-     */
     // Minecraft physics constants
+    // gravityCalc might need more tweaking but seems alright
     private static final double gravityCalc = 0.06; // blocks/tick squared
     private static final double ticksPerSecond = 20.0;
 

@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.util.ActionResult;
 import org.vivecraft.api.client.VRClientAPI;
-
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Client mod initializer
