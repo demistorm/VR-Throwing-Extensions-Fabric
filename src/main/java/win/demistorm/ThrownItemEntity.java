@@ -21,6 +21,7 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Projectile that carries the player's held item, deals damage, and drops the item after collision
@@ -211,6 +212,13 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
                 // Deal damage first
                 onEntityHit((EntityHitResult) hit);
 
+                // Only boomerang/embed if the item is a weapon/tool/does damage (should be mod compatible?)
+                float attackDamage = stackBaseDamage(getStack());
+                if (attackDamage <= 1.0F) {
+                    dropAndDiscard();
+                    return;
+                }
+
                 // Check to see if boomerang should activate
                 boolean shouldBounce = ConfigHelper.ACTIVE.boomerangEffect
                         && BoomerangEffect.canBounce(getStack().getItem())
@@ -247,17 +255,22 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         DamageSource src = sources.thrown(this, getOwner() == null ? this : getOwner());
 
         // Grabs the base damage from the itemStack and applies enchantment bonuses on top
-        float base = getBaseAttackDamage(getStack());
-        float damage = EnchantmentHelper.getDamage(world, getStack(), target, src, base);
+        float base = stackBaseDamage(getStack());
+        float totalDamage = EnchantmentHelper.getDamage(world, getStack(), target, src, base);
+        float enchantmentBonus = totalDamage - base; // For DEBUG
+
+        /* Might not need anymore, base damage should be okay now
         float multipliedDamage = damage * 2F; // Multiplies damage to make up for weird base attack damage
+         */
 
         // DEBUG
-        log.debug("[VR Throw] Damage dealt: Item={}, Base={}, Final={}, Target={}, BounceState={}",
-                getStack().getItem().toString(), base, multipliedDamage,
-                target.getName().getString(), bounceActive ? "RETURNING" : "FORWARD");
+        log.debug("[VR Throw] Damage dealt: Item={}, Base={}, EnchantBonus={}, Final={}, Target={}, BounceState={}",
+                getStack().getItem().toString(), base, enchantmentBonus,
+                totalDamage, target.getName().getString(),
+                bounceActive ? "RETURNING" : "FORWARD");
 
         // Actually damages the entity
-        target.damage(world, src, multipliedDamage);
+        target.damage(world, src, totalDamage);
 
         // Adds a little knockback
         Vec3d push = getVelocity().normalize().multiply(0.5);
@@ -277,18 +290,16 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     }
 
     // Checks the attack damage of a given item
-    private static float getBaseAttackDamage(ItemStack stack) {
-        final float[] bonus = {0f};
+    private static float stackBaseDamage(ItemStack stack) {
+        final float[] totalBonus = {0f};
 
-        EnchantmentHelper.applyAttributeModifiers(
-                stack, EquipmentSlot.MAINHAND,
-                (attrEntry, modifier) -> {
-                    if (attrEntry == EntityAttributes.ATTACK_DAMAGE) {
-                        bonus[0] += (float) modifier.value();
-                    }
-                });
+        stack.applyAttributeModifiers(EquipmentSlot.MAINHAND, (attrEntry, modifier) -> {
+            if (attrEntry == EntityAttributes.ATTACK_DAMAGE) {
+                totalBonus[0] += (float) modifier.value();
+            }
+        });
 
-        return 1.0F + bonus[0]; // 1 (base damage, like a punch) + item/enchantment damage
+        return 1.0F + totalBonus[0]; // 1.0 base punch + item’s modifier
     }
 
     // Placeholder item for ThrownItemEntity's sake
