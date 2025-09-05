@@ -15,7 +15,9 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ItemStackParticleEffect;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.MathHelper;
@@ -268,6 +270,21 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
                 getStack().getItem().toString(), base, enchantmentBonus,
                 totalDamage, target.getName().getString(),
                 bounceActive ? "RETURNING" : "FORWARD");
+        if (VRThrowingExtensions.debugMode) {
+            if (getOwner() instanceof ServerPlayerEntity player) {
+                Text msg = Text.literal(String.format(
+                        "[VR Throw] Damage dealt: Item=%s, Base=%.2f, EnchantBonus=%.2f, Final=%.2f, Target=%s, BounceState=%s",
+                        getStack().getItem(),
+                        base,
+                        enchantmentBonus,
+                        totalDamage,
+                        target.getName().getString(),
+                        bounceActive ? "RETURNING" : "FORWARD"
+                ));
+                player.sendMessage(msg, false);
+            }
+        }
+
 
         // Actually damages the entity
         target.damage(world, src, totalDamage);
