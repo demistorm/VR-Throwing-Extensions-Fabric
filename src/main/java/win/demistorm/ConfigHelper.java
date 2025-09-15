@@ -17,7 +17,8 @@ public final class ConfigHelper {
 
     // Toggles
     public static final class Data {
-        public boolean boomerangEffect = true; // On by default
+        // Renamed boomerangEffect to weaponEffect
+        public WeaponEffectType weaponEffect = WeaponEffectType.BOOMERANG; // Default to Boomerang
         public boolean aimAssist = true;       // On by default
     }
 
@@ -71,7 +72,7 @@ public final class ConfigHelper {
     }
 
     public static void copyInto(Data from, Data to) {
-        to.boomerangEffect = from.boomerangEffect;
+        to.weaponEffect = from.weaponEffect;
         to.aimAssist = from.aimAssist;
     }
 

@@ -222,7 +222,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
                 }
 
                 // Check to see if boomerang should activate
-                boolean shouldBounce = ConfigHelper.ACTIVE.boomerangEffect
+                boolean shouldBounce = ConfigHelper.ACTIVE.weaponEffect == WeaponEffectType.BOOMERANG
                         && BoomerangEffect.canBounce(getStack().getItem())
                         && !hasBounced
                         && !reachedOriginOnce; // Don't bounce if already completed return

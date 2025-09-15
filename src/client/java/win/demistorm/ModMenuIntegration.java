@@ -17,7 +17,7 @@ public final class ModMenuIntegration implements ModMenuApi {
 
     private static class SimpleToggleScreen extends Screen {
         private final Screen parent;
-        private boolean boomerangValue = ConfigHelper.CLIENT.boomerangEffect;
+        private WeaponEffectType weaponEffectValue = ConfigHelper.CLIENT.weaponEffect;
         private boolean aimAssistValue = ConfigHelper.CLIENT.aimAssist;
 
         protected SimpleToggleScreen(Screen parent) {
@@ -30,16 +30,22 @@ public final class ModMenuIntegration implements ModMenuApi {
             // Boomerang toggle button
             addDrawableChild(
                     ButtonWidget.builder(
-                                    Text.literal("Weapon Boomerang: " + (boomerangValue ? "ON" : "OFF")),
+                                    Text.literal("Weapon Effect: " + weaponEffectValue.name()),
                                     btn -> {
-                                        boomerangValue = !boomerangValue;
-                                        btn.setMessage(Text.literal(
-                                                "Weapon Boomerang: " + (boomerangValue ? "ON" : "OFF")));
+                                        // Cycle through options
+                                        weaponEffectValue = switch (weaponEffectValue) {
+                                            case OFF -> WeaponEffectType.BOOMERANG;
+                                            case BOOMERANG -> WeaponEffectType.EMBED;
+                                            case EMBED -> WeaponEffectType.OFF;
+                                        };
+                                        btn.setMessage(Text.literal("Weapon Effect: " + weaponEffectValue.name()));
                                     })
-                            .dimensions(width / 2 - 70, height / 4 + 24, 140, 20)  // Wider for better look, spaced for centering
-                            .tooltip(Tooltip.of(Text.literal("Enables/disables a boomerang effect causing weapons " +
-                                    "and tools to arc back toward you after hitting an " +
-                                    "entity. Remember to catch it or it might hurt!")))
+                            .dimensions(width / 2 - 80, height / 4 + 24, 160, 20)  // Wider for better look, spaced for centering
+                            .tooltip(Tooltip.of(Text.literal(
+                                    """
+                                            OFF: Weapons/tools drop normally.
+                                            BOOMERANG: Weapons/tools arc back after hitting an entity.
+                                            EMBED: Weapons/tools stick into the entity they hit.""")))
                             .build());
 
             // Aim assist toggle button (below boomerang)
@@ -51,7 +57,7 @@ public final class ModMenuIntegration implements ModMenuApi {
                                         btn.setMessage(Text.literal(
                                                 "Aim Assist: " + (aimAssistValue ? "ON" : "OFF")));
                                     })
-                            .dimensions(width / 2 - 70, height / 4 + 54, 140, 20)
+                            .dimensions(width / 2 - 80, height / 4 + 54, 160, 20)
                             .tooltip(Tooltip.of(Text.literal("Enables/disables a light aim correction effect, " +
                                     "bridging the gap between the controllers and your real intentions.")))
                             .build());
@@ -61,16 +67,15 @@ public final class ModMenuIntegration implements ModMenuApi {
                     ButtonWidget.builder(Text.literal("Done"),
                                     btn -> {
                                         // Save both values
-                                        ConfigHelper.CLIENT.boomerangEffect = boomerangValue;
+                                        ConfigHelper.CLIENT.weaponEffect = weaponEffectValue;
                                         ConfigHelper.CLIENT.aimAssist = aimAssistValue;
-                                        ConfigHelper.write(ConfigHelper.CLIENT); // Actually save to file
+                                        ConfigHelper.write(ConfigHelper.CLIENT); // Save to file
                                         assert client != null;
                                         if (client.getServer() != null) { // Integrated server (singleplayer)
                                             // Apply immediately to ACTIVE
-                                            ConfigHelper.ACTIVE.boomerangEffect = ConfigHelper.CLIENT.boomerangEffect;
+                                            ConfigHelper.ACTIVE.weaponEffect = ConfigHelper.CLIENT.weaponEffect;
                                             ConfigHelper.ACTIVE.aimAssist = ConfigHelper.CLIENT.aimAssist;
                                         }
-                                        assert client != null;
                                         client.setScreen(parent);
                                     })
                             .dimensions(width / 2 - 100, height - 27, 200, 20)  // Bottom position like native MC
