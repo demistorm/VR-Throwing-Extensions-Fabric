@@ -7,6 +7,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Box;
 
 import static win.demistorm.VRThrowingExtensions.log;
 
@@ -14,12 +15,12 @@ import static win.demistorm.VRThrowingExtensions.log;
 public final class EmbeddingEffect {
 
     // How the rolled X rotation should settle after impact (in degrees, positive X)
-    public static final float targetRollDegX = 45.0f; // Was 85
-    // How far past the collision point the projectile embeds into the entity
-    public static final double embedDepth = 0.40;
+    public static final float targetRollDegX = 15.0f; // Was 85, 45 is decent per testing
     // How quickly the roll converges to target per tick (deg/tick)
     public static final float rollApproachPerTick = 20.0f;
     private static final float forwardSpinSpeedDegPerTick = 15.0f;
+    // How much to adjust the embed position toward the center of the hitbox (0.0 = no adjustment, 1.0 = center)
+    private static final double embedAdjust = 0.45;
 
     private EmbeddingEffect() {}
 
@@ -38,9 +39,9 @@ public final class EmbeddingEffect {
         if (dir.lengthSquared() < 1.0e-6) dir = new Vec3d(1, 0, 0);
         dir = dir.normalize();
 
-        // Deeper embed from the hit point
+        // Calculate dynamic embed position by moving 30% closer to center of hitbox while maintaining Y level
         Vec3d hitPos = hit.getPos();
-        Vec3d embedPos = hitPos.add(dir.multiply(embedDepth));
+        Vec3d embedPos = calculateEmbedPosition(target, hitPos);
 
         // Base yaw/pitch as in flight rendering
         float yaw = (float)(MathHelper.atan2(dir.z, dir.x) * 180.0 / Math.PI);
@@ -63,11 +64,29 @@ public final class EmbeddingEffect {
                 SoundEvents.BLOCK_CHAIN_BREAK, SoundCategory.PLAYERS, 0.45f, 0.8f);
 
         // DEBUG
+        double finalEmbedDepth = hitPos.distanceTo(embedPos);
         log.debug("[Embed] Projectile {} embedded into {} at {} (+{}), yaw={}, pitch={}, tilt={}, xRollStart={}",
                 proj.getId(), target.getName().getString(), hitPos,
-                String.format("%.2f", embedDepth),
+                String.format("%.2f", finalEmbedDepth),
                 String.format("%.1f", yaw), String.format("%.1f", pitch),
                 String.format("%.1f", tiltDeg), String.format("%.1f", initialXRollDeg));
+    }
+
+    // Calculate embed position by moving closer to center while maintaining Y level
+    private static Vec3d calculateEmbedPosition(Entity target, Vec3d hitPos) {
+        Box boundingBox = target.getBoundingBox();
+
+        // Get the center of the bounding box at the same Y level as the hit
+        Vec3d centerAtHitY = new Vec3d(boundingBox.getCenter().x, hitPos.y, boundingBox.getCenter().z);
+
+        // Calculate the vector from hit position to center
+        Vec3d toCenter = centerAtHitY.subtract(hitPos);
+
+        // Move embedAdjust percent of the way toward the center
+        Vec3d adjustment = toCenter.multiply(embedAdjust);
+
+        // Apply the adjustment to move the embed position closer to center
+        return hitPos.add(adjustment);
     }
 
     // Per tick embed tracker
