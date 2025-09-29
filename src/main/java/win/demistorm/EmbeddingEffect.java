@@ -14,9 +14,9 @@ import static win.demistorm.VRThrowingExtensions.log;
 public final class EmbeddingEffect {
 
     // How the rolled X rotation should settle after impact (in degrees, positive X)
-    public static final float targetRollDegX = 85.0f;
+    public static final float targetRollDegX = 45.0f; // Was 85
     // How far past the collision point the projectile embeds into the entity
-    public static final double embedDepth = 0.30;
+    public static final double embedDepth = 0.40;
     // How quickly the roll converges to target per tick (deg/tick)
     public static final float rollApproachPerTick = 20.0f;
     private static final float forwardSpinSpeedDegPerTick = 15.0f;
