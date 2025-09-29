@@ -42,7 +42,7 @@ public final class EmbeddingEffect {
         Vec3d hitPos = hit.getPos();
         Vec3d embedPos = hitPos.add(dir.multiply(embedDepth));
 
-        // Base yaw/pitch as in flight rendering
+        // Base yaw/pitch as in flight rendering (world orientation right now)
         float yaw = (float)(MathHelper.atan2(dir.z, dir.x) * 180.0 / Math.PI);
         float pitch = (float)(MathHelper.atan2(dir.y, Math.sqrt(dir.x * dir.x + dir.z * dir.z)) * 180.0 / Math.PI);
 
@@ -52,9 +52,11 @@ public final class EmbeddingEffect {
         // Initial X roll continues the inflight spin for seamless transition
         float initialXRollDeg = (proj.age * forwardSpinSpeedDegPerTick) % 360.0f;
 
-        // Fixed offset to lock to this exact embed point
-        Vec3d localOffset = embedPos.subtract(target.getPos());
-        proj.beginEmbedding(living, localOffset, yaw, pitch, tiltDeg, initialXRollDeg);
+        // Offset from the target's position to the exact embed point (in WORLD space here)
+        Vec3d worldOffset = embedPos.subtract(target.getPos());
+
+        // Initialize embedding (entity converts to host-local space and stores local orientation)
+        proj.beginEmbedding(living, worldOffset, yaw, pitch, tiltDeg, initialXRollDeg);
 
         // Sound effect
         proj.getWorld().playSound(null, proj.getBlockPos(),
@@ -86,14 +88,25 @@ public final class EmbeddingEffect {
             return;
         }
 
-        // Maintain position at the locked local offset relative to the host's base position
+        // Use BODY yaw so rotation-in-place is reflected even when not moving
+        float hostBodyYaw = living.getBodyYaw();
+        float hostPitch = living.getPitch();
+
+        // Maintain position at the locked LOCAL offset relative to the host (rotate by host BODY yaw)
         Vec3d base = target.getPos();
-        Vec3d newPos = base.add(proj.getEmbeddedOffset());
+        Vec3d offsetWorld = rotateY(proj.getEmbeddedOffset(), hostBodyYaw);
+        Vec3d newPos = base.add(offsetWorld);
         proj.setPosition(newPos);
 
         // Freeze physics
         proj.setVelocity(Vec3d.ZERO);
         proj.setNoGravity(true);
+
+        // Visual yaw/pitch follow the host body/head while preserving local embed orientation
+        float worldYaw = MathHelper.wrapDegrees(hostBodyYaw + proj.getEmbeddedLocalYaw());
+        float worldPitch = MathHelper.wrapDegrees(hostPitch + proj.getEmbeddedLocalPitch());
+        proj.setEmbedYaw(worldYaw);
+        proj.setEmbedPitch(worldPitch);
 
         // Approach the nearest 85 degrees (mod 360) and stop there
         float current = proj.getEmbedRoll();
@@ -106,8 +119,16 @@ public final class EmbeddingEffect {
             float next = Math.abs(diff) <= rollApproachPerTick ? nearestTarget : current + step;
             proj.setEmbedRoll(next);
         }
-    }
 
+        // DEBUG occasionally
+        if (proj.age % 20 == 0) {
+            log.debug("[Embed] Following host. proj={} bodyYaw={} worldYaw={} pos={}",
+                    proj.getId(),
+                    String.format("%.1f", hostBodyYaw),
+                    String.format("%.1f", worldYaw),
+                    proj.getPos());
+        }
+    }
 
     // When catching starts, release from embedding
     public static void releaseEmbedding(ThrownItemEntity proj) {
@@ -116,5 +137,15 @@ public final class EmbeddingEffect {
         proj.setNoGravity(true);
         proj.setVelocity(Vec3d.ZERO);
         log.debug("[Embed] Released projectile {} from embed state for catching", proj.getId());
+    }
+
+    // Rotate a vector around the Y-axis by degrees
+    private static Vec3d rotateY(Vec3d v, float degrees) {
+        double rad = Math.toRadians(degrees);
+        double cos = Math.cos(rad);
+        double sin = Math.sin(rad);
+        double x = v.x * cos - v.z * sin;
+        double z = v.x * sin + v.z * cos;
+        return new Vec3d(x, v.y, z);
     }
 }

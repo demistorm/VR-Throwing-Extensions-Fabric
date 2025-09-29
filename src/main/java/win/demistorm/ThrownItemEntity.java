@@ -45,8 +45,14 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
     // Embedding state tracking
     private LivingEntity embeddedTarget = null;     // Host entity we're embedded in
-    private Vec3d embeddedOffset = Vec3d.ZERO;      // Offset from target.getPos() to the actual hit point (world-space offset)
+    // Offset from target.getPos() to the actual hit point (world-space offset)
+    private Vec3d embeddedOffset = Vec3d.ZERO;      // LOCAL offset (relative to host body yaw)
     private boolean alreadyDropped = false;         // Prevent duplicate drops via removal
+
+    // NEW: local orientation (relative to host orientation at embed)
+    private Vec3d embeddedLocalOffset = Vec3d.ZERO; // Same as embeddedOffset for clarity, but keep separate accessor
+    private float embeddedLocalYaw = 0f;            // Yaw relative to host yaw
+    private float embeddedLocalPitch = 0f;          // Pitch relative to host pitch
 
     public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, World world) {
         super(type, world);
@@ -369,17 +375,26 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     }
 
     // Called by EmbeddingEffect to initialize embedded state
-    public void beginEmbedding(LivingEntity host, Vec3d localOffset,
+    public void beginEmbedding(LivingEntity host, Vec3d worldOffset,
                                float yawDeg, float pitchDeg, float tiltDeg, float initialXRollDeg) {
 
         // Freeze physics & move to the embed point precisely
         this.embeddedTarget = host;
-        this.embeddedOffset = localOffset;
         this.setNoGravity(true);
         this.setVelocity(Vec3d.ZERO);
-        this.setPosition(host.getPos().add(localOffset));
+        this.setPosition(host.getPos().add(worldOffset));
 
-        // Set networked embed state for rendering on all clients
+        // Convert world-space offset to host-local space (rotate by -host BODY yaw)
+        float hostBodyYaw = host.getBodyYaw();
+        float hostPitch = host.getPitch();
+        Vec3d localOffset = rotateY(worldOffset, -hostBodyYaw);
+
+        // Save local offset/orientation (these are used each tick to follow the host)
+        this.embeddedOffset = localOffset; // now LOCAL
+        this.embeddedLocalYaw = MathHelper.wrapDegrees(yawDeg - hostBodyYaw);
+        this.embeddedLocalPitch = MathHelper.wrapDegrees(pitchDeg - hostPitch);
+
+        // Network embed state for clients (store current world orientation)
         this.dataTracker.set(IS_EMBEDDED, true);
         this.dataTracker.set(EMBED_YAW, yawDeg);
         this.dataTracker.set(EMBED_PITCH, pitchDeg);
@@ -387,17 +402,20 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         this.dataTracker.set(EMBED_TILT, tiltDeg);
 
         // DEBUG
-        log.debug("[Embed] beginEmbedding: proj={} host={} offset={} yaw={} pitch={} tilt={} xRollStart={}",
-                getId(), host.getName().getString(), localOffset,
+        VRThrowingExtensions.log.debug("[Embed] beginEmbedding: proj={} host={} worldOffset={} localOffset={} yaw={} pitch={} tilt={} xRollStart={}",
+                getId(), host.getName().getString(), worldOffset, localOffset,
                 String.format("%.1f", yawDeg), String.format("%.1f", pitchDeg),
                 String.format("%.1f", tiltDeg), String.format("%.1f", initialXRollDeg));
     }
+
 
     // Clears embedding state (used when host dies or catching starts)
     public void clearEmbedding() {
         this.dataTracker.set(IS_EMBEDDED, false);
         this.embeddedTarget = null;
         this.embeddedOffset = Vec3d.ZERO;
+        this.embeddedLocalYaw = 0f;
+        this.embeddedLocalPitch = 0f;
         this.setNoGravity(false);
     }
 
@@ -409,7 +427,24 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public void setEmbedRoll(float v) { this.dataTracker.set(EMBED_ROLL, v); }
     public float getEmbedTilt() { return this.dataTracker.get(EMBED_TILT); } // NEW
     public Entity getEmbeddedTarget() { return this.embeddedTarget; }
-    public Vec3d getEmbeddedOffset()  { return this.embeddedOffset; }
+
+    // NEW: local-space getters/setters used by EmbeddingEffect to follow host rotation
+    public Vec3d getEmbeddedLocalOffset() { return this.embeddedLocalOffset; }
+    public Vec3d getEmbeddedOffset()      { return this.embeddedOffset; }
+    public float getEmbeddedLocalYaw()    { return this.embeddedLocalYaw; }
+    public float getEmbeddedLocalPitch()  { return this.embeddedLocalPitch; }
+    public void setEmbedYaw(float v)      { this.dataTracker.set(EMBED_YAW, v); }
+    public void setEmbedPitch(float v)    { this.dataTracker.set(EMBED_PITCH, v); }
+
+    // Rotate a vector around the Y-axis by degrees
+    private static Vec3d rotateY(Vec3d v, float degrees) {
+        double rad = Math.toRadians(degrees);
+        double cos = Math.cos(rad);
+        double sin = Math.sin(rad);
+        double x = v.x * cos - v.z * sin;
+        double z = v.x * sin + v.z * cos;
+        return new Vec3d(x, v.y, z);
+    }
 
     // Drops the item (if not already dropped) and discards this projectile
     public void dropAndDiscard() {
