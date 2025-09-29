@@ -49,8 +49,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     private Vec3d embeddedOffset = Vec3d.ZERO;      // LOCAL offset (relative to host body yaw)
     private boolean alreadyDropped = false;         // Prevent duplicate drops via removal
 
-    // NEW: local orientation (relative to host orientation at embed)
-    private Vec3d embeddedLocalOffset = Vec3d.ZERO; // Same as embeddedOffset for clarity, but keep separate accessor
     private float embeddedLocalYaw = 0f;            // Yaw relative to host yaw
     private float embeddedLocalPitch = 0f;          // Pitch relative to host pitch
 
@@ -428,8 +426,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public float getEmbedTilt() { return this.dataTracker.get(EMBED_TILT); } // NEW
     public Entity getEmbeddedTarget() { return this.embeddedTarget; }
 
-    // NEW: local-space getters/setters used by EmbeddingEffect to follow host rotation
-    public Vec3d getEmbeddedLocalOffset() { return this.embeddedLocalOffset; }
     public Vec3d getEmbeddedOffset()      { return this.embeddedOffset; }
     public float getEmbeddedLocalYaw()    { return this.embeddedLocalYaw; }
     public float getEmbeddedLocalPitch()  { return this.embeddedLocalPitch; }
