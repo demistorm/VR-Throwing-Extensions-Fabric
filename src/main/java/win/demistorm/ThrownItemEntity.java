@@ -32,7 +32,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public boolean catching = false;                // Whether this projectile is being caught
     private Vec3d storedVelocity = Vec3d.ZERO;      // Stores velocity before catching
 
-    // Enhanced boomerang state tracking
+    // Boomerang state tracking
     private int bounceReturnTicks = 0;              // Time spent in return flight
     private boolean reachedOriginOnce = false;      // Prevents oscillation at origin
     protected Vec3d originalThrowPos = Vec3d.ZERO;  // Saved when the entity is created on the server
@@ -42,6 +42,11 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public Vec3d bouncePlaneNormal = Vec3d.ZERO;
     public double bounceArcMag = 0.0;
     public boolean bounceInverse = true;           // Inverts the bounce direction
+
+    // Embedding state tracking
+    private LivingEntity embeddedTarget = null;     // Host entity we're embedded in
+    private Vec3d embeddedOffset = Vec3d.ZERO;      // Offset from target.getPos() to the actual hit point (world-space offset)
+    private boolean alreadyDropped = false;         // Prevent duplicate drops via removal
 
     public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, World world) {
         super(type, world);
@@ -59,6 +64,23 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
             DataTracker.registerData(ThrownItemEntity.class,
                     TrackedDataHandlerRegistry.BOOLEAN);
 
+    // Embedding tracked data (so clients can render properly)
+    private static final TrackedData<Boolean> IS_EMBEDDED =
+            DataTracker.registerData(ThrownItemEntity.class,
+                    TrackedDataHandlerRegistry.BOOLEAN);
+    private static final TrackedData<Float> EMBED_YAW =
+            DataTracker.registerData(ThrownItemEntity.class,
+                    TrackedDataHandlerRegistry.FLOAT);
+    private static final TrackedData<Float> EMBED_PITCH =
+            DataTracker.registerData(ThrownItemEntity.class,
+                    TrackedDataHandlerRegistry.FLOAT);
+    private static final TrackedData<Float> EMBED_ROLL =
+            DataTracker.registerData(ThrownItemEntity.class,
+                    TrackedDataHandlerRegistry.FLOAT);
+    private static final TrackedData<Float> EMBED_TILT =
+            DataTracker.registerData(ThrownItemEntity.class,
+                    TrackedDataHandlerRegistry.FLOAT);
+
     // Handles the rotation of the arm and bounce state
     @Override
     protected void initDataTracker(DataTracker.Builder builder) {
@@ -66,20 +88,28 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         builder.add(HAND_ROLL, 0f);
         builder.add(IS_CATCHING, false);
         builder.add(BOUNCE_ACTIVE, false);
+        builder.add(IS_EMBEDDED, false);
+        builder.add(EMBED_YAW, 0f);
+        builder.add(EMBED_PITCH, 0f);
+        builder.add(EMBED_ROLL, 0f);
+        builder.add(EMBED_TILT, 0f);
     }
 
     public void setHandRoll(float deg) {
         this.dataTracker.set(HAND_ROLL, deg);
     }
-
     public float getHandRoll() {
         return this.dataTracker.get(HAND_ROLL);
     }
 
     public void startCatch() {
+        // Release embedding state when catching is called
+        EmbeddingEffect.releaseEmbedding(this);
+
         this.catching = true;
         this.storedVelocity = getVelocity();
         this.dataTracker.set(IS_CATCHING, true);
+
         // Disable gravity while being caught
         this.setNoGravity(true);
         log.debug("[VR Catch] Started catch for projectile {}", this.getId());
@@ -88,23 +118,26 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     public void cancelCatch() {
         this.catching = false;
         this.dataTracker.set(IS_CATCHING, false);
+
         // Restore gravity
         this.setNoGravity(false);
+
         // Restore some velocity to continue flying
         if (storedVelocity.length() > 0.1) {
             setVelocity(storedVelocity.multiply(0.5));
         }
+
+        // DEBUG
         log.debug("[VR Catch] Canceled catch for projectile {}", this.getId());
     }
 
+    // Data trackers
     public boolean isCatching() {
         return this.dataTracker.get(IS_CATCHING);
     }
-
     public boolean isBounceActive() {
         return this.dataTracker.get(BOUNCE_ACTIVE);
     }
-
     public int getStackSize() {
         return this.stackSize;
     }
@@ -121,6 +154,12 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     @Override
     public void tick() {
         super.tick();
+
+        // Checks if projectile is embedded
+        if (isEmbedded() && !isCatching()) {
+            EmbeddingEffect.tickEmbedded(this);
+            return; //
+        }
 
         // Boomerang return handling
         if (bounceActive && !isCatching()) {
@@ -221,20 +260,25 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
                     return;
                 }
 
-                // Check to see if boomerang should activate
-                boolean shouldBounce = ConfigHelper.ACTIVE.weaponEffect == WeaponEffectType.BOOMERANG
-                        && BoomerangEffect.canBounce(getStack().getItem())
-                        && !hasBounced
-                        && !reachedOriginOnce; // Don't bounce if already completed return
+                // Apply effect based on weeapon effect config
+                if (ConfigHelper.ACTIVE.weaponEffect == WeaponEffectType.BOOMERANG) {
+                    boolean shouldBounce = BoomerangEffect.canBounce(getStack().getItem())
+                            && !hasBounced
+                            && !reachedOriginOnce; // Don't bounce if already completed return
 
-                if (shouldBounce) {
-                    log.debug("[VR Throw] Starting boomerang effect for projectile {}", this.getId());
-                    BoomerangEffect.startBounce(this);
+                    if (shouldBounce) {
+                        log.debug("[VR Throw] Starting boomerang effect for projectile {}", this.getId());
+                        BoomerangEffect.startBounce(this);
 
-                    // Update tracked data for client sync
-                    bounceActive = true;
-                    this.dataTracker.set(BOUNCE_ACTIVE, true);
-                    return; // Starts return flight
+                        // Update tracked data for client sync
+                        bounceActive = true;
+                        this.dataTracker.set(BOUNCE_ACTIVE, true);
+                        return; // Starts return flight
+                    }
+                } else if (ConfigHelper.ACTIVE.weaponEffect == WeaponEffectType.EMBED) {
+                    // Starts embedding effect
+                    EmbeddingEffect.startEmbedding(this, (EntityHitResult) hit);
+                    return; // Embedded items are handled by tickEmbedded
                 }
             }
 
@@ -261,10 +305,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         float totalDamage = EnchantmentHelper.getDamage(world, getStack(), target, src, base);
         float enchantmentBonus = totalDamage - base; // For DEBUG
 
-        /* Might not need anymore, base damage should be okay now
-        float multipliedDamage = damage * 2F; // Multiplies damage to make up for weird base attack damage
-         */
-
         // DEBUG
         log.debug("[VR Throw] Damage dealt: Item={}, Base={}, EnchantBonus={}, Final={}, Target={}, BounceState={}",
                 getStack().getItem().toString(), base, enchantmentBonus,
@@ -284,7 +324,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
                 player.sendMessage(msg, false);
             }
         }
-
 
         // Actually damages the entity
         target.damage(world, src, totalDamage);
@@ -329,11 +368,63 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         this.originalThrowPos = v;
     }
 
-    private void dropAndDiscard() {
-        ItemStack dropStack = createDropStack();
-        dropStack.setCount(stackSize);
-        getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
-                getWorld(), getX(), getY(), getZ(), dropStack));
+    // Called by EmbeddingEffect to initialize embedded state
+    public void beginEmbedding(LivingEntity host, Vec3d localOffset,
+                               float yawDeg, float pitchDeg, float tiltDeg, float initialXRollDeg) {
+
+        // Freeze physics & move to the embed point precisely
+        this.embeddedTarget = host;
+        this.embeddedOffset = localOffset;
+        this.setNoGravity(true);
+        this.setVelocity(Vec3d.ZERO);
+        this.setPosition(host.getPos().add(localOffset));
+
+        // Set networked embed state for rendering on all clients
+        this.dataTracker.set(IS_EMBEDDED, true);
+        this.dataTracker.set(EMBED_YAW, yawDeg);
+        this.dataTracker.set(EMBED_PITCH, pitchDeg);
+        this.dataTracker.set(EMBED_ROLL, initialXRollDeg);
+        this.dataTracker.set(EMBED_TILT, tiltDeg);
+
+        // DEBUG
+        log.debug("[Embed] beginEmbedding: proj={} host={} offset={} yaw={} pitch={} tilt={} xRollStart={}",
+                getId(), host.getName().getString(), localOffset,
+                String.format("%.1f", yawDeg), String.format("%.1f", pitchDeg),
+                String.format("%.1f", tiltDeg), String.format("%.1f", initialXRollDeg));
+    }
+
+    // Clears embedding state (used when host dies or catching starts)
+    public void clearEmbedding() {
+        this.dataTracker.set(IS_EMBEDDED, false);
+        this.embeddedTarget = null;
+        this.embeddedOffset = Vec3d.ZERO;
+        this.setNoGravity(false);
+    }
+
+    // Embedding accessors for renderer/tick
+    public boolean isEmbedded() { return this.dataTracker.get(IS_EMBEDDED); }
+    public float getEmbedYaw()  { return this.dataTracker.get(EMBED_YAW); }
+    public float getEmbedPitch(){ return this.dataTracker.get(EMBED_PITCH); }
+    public float getEmbedRoll() { return this.dataTracker.get(EMBED_ROLL); }
+    public void setEmbedRoll(float v) { this.dataTracker.set(EMBED_ROLL, v); }
+    public float getEmbedTilt() { return this.dataTracker.get(EMBED_TILT); } // NEW
+    public Entity getEmbeddedTarget() { return this.embeddedTarget; }
+    public Vec3d getEmbeddedOffset()  { return this.embeddedOffset; }
+
+    // Drops the item (if not already dropped) and discards this projectile
+    public void dropAndDiscard() {
+        if (alreadyDropped) {
+            // Prevent double-drop
+            discard();
+            return;
+        }
+        alreadyDropped = true;
+        if (!getWorld().isClient()) {
+            ItemStack dropStack = createDropStack();
+            dropStack.setCount(stackSize);
+            getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
+                    getWorld(), getX(), getY(), getZ(), dropStack));
+        }
         discard();
     }
 }

@@ -43,6 +43,15 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         state.handRollDeg = entity.getHandRoll();
         state.isCatching = entity.isCatching();
         state.isBounceActive = entity.isBounceActive();
+
+        // Embedding render state
+        state.isEmbedded = entity.isEmbedded();
+        if (state.isEmbedded) {
+            state.embedYawDeg = entity.getEmbedYaw();
+            state.embedPitchDeg = entity.getEmbedPitch();
+            state.embedRollDeg = entity.getEmbedRoll(); // X settle angle (animated on server)
+            state.embedTiltDeg = entity.getEmbedTilt(); // Z roll from controller (constant)
+        }
     }
 
     @Override
@@ -52,10 +61,32 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
                        int light) {
         matrices.push();
 
-        // Get velocity for direction calculation
+        // Freezes rotation when item is embedded
+        if (state.isEmbedded) {
+            // Match flight order: yaw -> pitch -> Z tilt (hand roll) -> X roll (settle)
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90.0F - state.embedYawDeg));
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-state.embedPitchDeg));
+            matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(state.embedTiltDeg)); // hand tilt
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(state.embedRollDeg)); // X settle spin
+            matrices.scale(scale, scale, scale);
+            itemRenderer.renderItem(
+                    state.itemStack,
+                    ItemDisplayContext.FIRST_PERSON_RIGHT_HAND,
+                    light,
+                    OverlayTexture.DEFAULT_UV,
+                    matrices,
+                    vcp,
+                    null,
+                    0
+            );
+            matrices.pop();
+            super.render(state, matrices, vcp, light);
+            return;
+        }
+
+        // Non-embedded path: existing logic
         Vec3d vel = state.velocity;
 
-        // Rotation calculation
         if (vel.length() > 0.001) {
             // Calculate yaw (horizontal rotation)
             float yaw = (float)(MathHelper.atan2(vel.z, vel.x) * 180.0 / Math.PI);
@@ -81,7 +112,6 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
             matrices.translate(0, bobOffset, 0);
         } else if (state.isBounceActive) {
             // Rotation for boomerang return flight
-            // More controlled spinning that suggests return trajectory
             float returnSpin = (state.age * 8.0F) % 360F; // Medium speed spin
             matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(returnSpin));
 
@@ -125,5 +155,10 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
         public float handRollDeg = 0f;
         public boolean isCatching = false;
         public boolean isBounceActive = false;
+        public boolean isEmbedded = false;
+        public float embedYawDeg = 0f;
+        public float embedPitchDeg = 0f;
+        public float embedRollDeg = 0f;
+        public float embedTiltDeg = 0f;
     }
 }
