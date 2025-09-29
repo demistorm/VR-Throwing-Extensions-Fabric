@@ -45,7 +45,6 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
     // Embedding state tracking
     private LivingEntity embeddedTarget = null;     // Host entity we're embedded in
-    // Offset from target.getPos() to the actual hit point (world-space offset)
     private Vec3d embeddedOffset = Vec3d.ZERO;      // LOCAL offset (relative to host body yaw)
     private boolean alreadyDropped = false;         // Prevent duplicate drops via removal
 
@@ -392,7 +391,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         this.embeddedLocalYaw = MathHelper.wrapDegrees(yawDeg - hostBodyYaw);
         this.embeddedLocalPitch = MathHelper.wrapDegrees(pitchDeg - hostPitch);
 
-        // Network embed state for clients (store current world orientation)
+        // Network embed state for clients (stores current world orientation)
         this.dataTracker.set(IS_EMBEDDED, true);
         this.dataTracker.set(EMBED_YAW, yawDeg);
         this.dataTracker.set(EMBED_PITCH, pitchDeg);

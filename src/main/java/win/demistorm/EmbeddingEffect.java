@@ -42,7 +42,7 @@ public final class EmbeddingEffect {
         Vec3d hitPos = hit.getPos();
         Vec3d embedPos = hitPos.add(dir.multiply(embedDepth));
 
-        // Base yaw/pitch as in flight rendering (world orientation right now)
+        // Base yaw/pitch as in flight rendering
         float yaw = (float)(MathHelper.atan2(dir.z, dir.x) * 180.0 / Math.PI);
         float pitch = (float)(MathHelper.atan2(dir.y, Math.sqrt(dir.x * dir.x + dir.z * dir.z)) * 180.0 / Math.PI);
 
@@ -52,10 +52,10 @@ public final class EmbeddingEffect {
         // Initial X roll continues the inflight spin for seamless transition
         float initialXRollDeg = (proj.age * forwardSpinSpeedDegPerTick) % 360.0f;
 
-        // Offset from the target's position to the exact embed point (in WORLD space here)
+        // Offset from the target's position to the exact embed point
         Vec3d worldOffset = embedPos.subtract(target.getPos());
 
-        // Initialize embedding (entity converts to host-local space and stores local orientation)
+        // Initialize embedding
         proj.beginEmbedding(living, worldOffset, yaw, pitch, tiltDeg, initialXRollDeg);
 
         // Sound effect
@@ -88,11 +88,11 @@ public final class EmbeddingEffect {
             return;
         }
 
-        // Use BODY yaw so rotation-in-place is reflected even when not moving
+        // Use body yaw so in-place rotation is reflected even when not technically moving
         float hostBodyYaw = living.getBodyYaw();
         float hostPitch = living.getPitch();
 
-        // Maintain position at the locked LOCAL offset relative to the host (rotate by host BODY yaw)
+        // Maintain position at the locked local offset relative to the host (rotate by host BODY yaw)
         Vec3d base = target.getPos();
         Vec3d offsetWorld = rotateY(proj.getEmbeddedOffset(), hostBodyYaw);
         Vec3d newPos = base.add(offsetWorld);
@@ -120,7 +120,7 @@ public final class EmbeddingEffect {
             proj.setEmbedRoll(next);
         }
 
-        // DEBUG occasionally
+        // DEBUG
         if (proj.age % 20 == 0) {
             log.debug("[Embed] Following host. proj={} bodyYaw={} worldYaw={} pos={}",
                     proj.getId(),
