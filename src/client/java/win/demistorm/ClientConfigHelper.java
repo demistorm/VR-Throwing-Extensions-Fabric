@@ -11,8 +11,9 @@ public final class ClientConfigHelper {
     private ClientConfigHelper() {}
 
     public static void init() {
-        // Local singleplayer config file
+        // Local config files
         ConfigHelper.loadOrCreateClientConfig();
+        ClientOnlyConfig.loadOrCreate();
 
         // Handle the sync packet
         ClientPlayNetworking.registerGlobalReceiver(

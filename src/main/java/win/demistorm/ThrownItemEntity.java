@@ -331,6 +331,20 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         // Actually damages the entity
         target.damage(world, src, totalDamage);
 
+        // DRAFT Blood Effect
+        // NEW: Send blood particle packet if damage was dealt
+        if (totalDamage > 0 && !world.isClient()) {
+            Vec3d hitPos = res.getPos();
+            Vec3d hitVel = getVelocity().normalize().multiply(0.3);
+
+            for (net.minecraft.server.network.ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                if (player.getWorld() == world && player.squaredDistanceTo(hitPos) < 4096) { // 64 blocks
+                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                            player, new NetworkHelper.BloodParticlePacket(hitPos, hitVel));
+                }
+            }
+        }
+
         // Adds a little knockback
         Vec3d push = getVelocity().normalize().multiply(0.5);
         target.addVelocity(push.x, 0.1 + push.y, push.z);

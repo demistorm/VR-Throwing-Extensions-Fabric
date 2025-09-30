@@ -19,6 +19,7 @@ public final class ModMenuIntegration implements ModMenuApi {
         private final Screen parent;
         private WeaponEffectType weaponEffectValue = ConfigHelper.CLIENT.weaponEffect;
         private boolean aimAssistValue = ConfigHelper.CLIENT.aimAssist;
+        private boolean bloodEffectValue = ClientOnlyConfig.ACTIVE.bloodEffect;
 
         protected SimpleToggleScreen(Screen parent) {
             super(Text.literal("VR Throwing Extensions Configuration"));
@@ -48,7 +49,7 @@ public final class ModMenuIntegration implements ModMenuApi {
                                             EMBED: Weapons/tools stick into the entity they hit.""")))
                             .build());
 
-            // Aim assist toggle button (below boomerang)
+            // Aim assist toggle button
             addDrawableChild(
                     ButtonWidget.builder(
                                     Text.literal("Aim Assist: " + (aimAssistValue ? "ON" : "OFF")),
@@ -62,23 +63,38 @@ public final class ModMenuIntegration implements ModMenuApi {
                                     "bridging the gap between the controllers and your real intentions.")))
                             .build());
 
-            // Done button (bottom-center)
+            // Blood Effect toggle (NEW)
+            addDrawableChild(
+                    ButtonWidget.builder(
+                                    Text.literal("Blood Effects: " + (bloodEffectValue ? "ON" : "OFF")),
+                                    btn -> {
+                                        bloodEffectValue = !bloodEffectValue;
+                                        btn.setMessage(Text.literal("Blood Effect: " + (bloodEffectValue ? "ON" : "OFF")));
+                                    })
+                            .dimensions(width / 2 - 80, height / 4 + 84, 160, 20)
+                            .tooltip(Tooltip.of(Text.literal("Client-only blood particles on hit")))
+                            .build());
+
+            // Done button
             addDrawableChild(
                     ButtonWidget.builder(Text.literal("Done"),
                                     btn -> {
-                                        // Save both values
                                         ConfigHelper.CLIENT.weaponEffect = weaponEffectValue;
                                         ConfigHelper.CLIENT.aimAssist = aimAssistValue;
-                                        ConfigHelper.write(ConfigHelper.CLIENT); // Save to file
+                                        ConfigHelper.write(ConfigHelper.CLIENT);
+
+                                        // Saves blood effect too
+                                        ClientOnlyConfig.ACTIVE.bloodEffect = bloodEffectValue;
+                                        ClientOnlyConfig.write(ClientOnlyConfig.ACTIVE);
+
                                         assert client != null;
-                                        if (client.getServer() != null) { // Integrated server (singleplayer)
-                                            // Apply immediately to ACTIVE
+                                        if (client.getServer() != null) {
                                             ConfigHelper.ACTIVE.weaponEffect = ConfigHelper.CLIENT.weaponEffect;
                                             ConfigHelper.ACTIVE.aimAssist = ConfigHelper.CLIENT.aimAssist;
                                         }
                                         client.setScreen(parent);
                                     })
-                            .dimensions(width / 2 - 100, height - 27, 200, 20)  // Bottom position like native MC
+                            .dimensions(width / 2 - 100, height - 27, 200, 20)
                             .build());
         }
 
