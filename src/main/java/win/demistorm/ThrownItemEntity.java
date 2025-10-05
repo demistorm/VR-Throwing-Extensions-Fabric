@@ -335,7 +335,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         // NEW: Send blood particle packet if damage was dealt
         if (totalDamage > 0 && !world.isClient()) {
             Vec3d hitPos = res.getPos();
-            Vec3d hitVel = getVelocity().normalize().multiply(0.3);
+            Vec3d hitVel = getVelocity();
 
             for (net.minecraft.server.network.ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
                 if (player.getWorld() == world && player.squaredDistanceTo(hitPos) < 4096) { // 64 blocks
