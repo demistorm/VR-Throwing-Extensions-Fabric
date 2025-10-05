@@ -130,6 +130,24 @@ public final class NetworkHelper {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    public record BleedParticlePacket(Vec3d pos) implements CustomPayload {
+        public static final Id<BleedParticlePacket> ID =
+                new Id<>(Identifier.of("vr-throwing-extensions", "bleed_particle"));
+
+        public static final PacketCodec<RegistryByteBuf, BleedParticlePacket> CODEC =
+                PacketCodec.of(
+                        (value, buf) -> {
+                            buf.writeDouble(value.pos.x);
+                            buf.writeDouble(value.pos.y);
+                            buf.writeDouble(value.pos.z);
+                        },
+                        buf -> new BleedParticlePacket(
+                                new Vec3d(buf.readDouble(), buf.readDouble(), buf.readDouble()))
+                );
+
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public static void initServer() {
         // Tell Netty how to encode/decode
         PayloadTypeRegistry.playC2S().register(ThrowPacket.ID, ThrowPacket.CODEC);
@@ -137,6 +155,7 @@ public final class NetworkHelper {
         PayloadTypeRegistry.playC2S().register(CatchUpdatePacket.ID, CatchUpdatePacket.CODEC);
         PayloadTypeRegistry.playC2S().register(CatchCompletePacket.ID, CatchCompletePacket.CODEC);
         PayloadTypeRegistry.playS2C().register(BloodParticlePacket.ID, BloodParticlePacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(BleedParticlePacket.ID, BleedParticlePacket.CODEC);
 
         // Handles the packets
         ServerPlayNetworking.registerGlobalReceiver(ThrowPacket.ID, (payload, context) -> {

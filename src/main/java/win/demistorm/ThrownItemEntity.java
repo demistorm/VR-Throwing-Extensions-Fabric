@@ -422,6 +422,11 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
     // Clears embedding state (used when host dies or catching starts)
     public void clearEmbedding() {
+        // Unregister bleed on the server before clearing the target
+        if (!this.getWorld().isClient() && this.embeddedTarget != null) {
+            EmbeddingEffect.BleedManager.unregister(this.embeddedTarget, this); // CHANGED
+        }
+
         this.dataTracker.set(IS_EMBEDDED, false);
         this.embeddedTarget = null;
         this.embeddedOffset = Vec3d.ZERO;
@@ -457,6 +462,11 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
 
     // Drops the item (if not already dropped) and discards this projectile
     public void dropAndDiscard() {
+        // NEW: Ensure bleed is unregistered if we were embedded
+        if (isEmbedded()) {
+            clearEmbedding();
+        }
+
         if (alreadyDropped) {
             // Prevent double-drop
             discard();

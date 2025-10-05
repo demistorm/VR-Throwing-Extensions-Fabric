@@ -17,8 +17,9 @@ public class VRThrowingExtensionsClient implements ClientModInitializer {
 		log.info("VR Throwing Extensions (CLIENT) starting!");
 		// Load config
 		ClientConfigHelper.init();
-		// Load blood config
+		// Initialize blood effects
 		ClientBloodParticleHandler.init();
+		ClientBleedingParticleHandler.init();
 		// Register the throwing tracker (replaces init and client tick event)
 		registerTracker();
 		// Well you can see what this does, it's right under here

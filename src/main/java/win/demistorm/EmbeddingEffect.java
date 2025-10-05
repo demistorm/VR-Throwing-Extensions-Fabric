@@ -15,12 +15,16 @@ import static win.demistorm.VRThrowingExtensions.log;
 public final class EmbeddingEffect {
 
     // How the rolled X rotation should settle after impact (in degrees, positive X)
-    public static final float targetRollDegX = 15.0f; // Was 85, 45 is decent per testing
+    public static final float targetRollDegX = 15.0f;
     // How quickly the roll converges to target per tick (deg/tick)
     public static final float rollApproachPerTick = 20.0f;
     private static final float forwardSpinSpeedDegPerTick = 15.0f;
     // How much to adjust the embed position toward the center of the hitbox (0.0 = no adjustment, 1.0 = center)
     private static final double embedAdjust = 0.45;
+
+    // Bleeding tunables
+    private static final int bleedIntervalTicks = 30; // Every 30 ticks from embed
+    private static final float bleedDamage = 1.0f;    // Damage per embedded projectile
 
     private EmbeddingEffect() {}
 
@@ -58,6 +62,9 @@ public final class EmbeddingEffect {
 
         // Initialize embedding
         proj.beginEmbedding(living, worldOffset, yaw, pitch, tiltDeg, initialXRollDeg);
+
+        // NEW: Register this embed for bleeding (anchor to the time of the first embed)
+        BleedManager.register(living, proj.getWorld().getTime(), proj);
 
         // Sound effect
         proj.getWorld().playSound(null, proj.getBlockPos(),
@@ -139,6 +146,9 @@ public final class EmbeddingEffect {
             proj.setEmbedRoll(next);
         }
 
+        // NEW: Apply synced bleed if it's this world's bleed tick for the host
+        BleedManager.tryApplyBleed(living, proj.getWorld().getTime());
+
         // DEBUG
         if (proj.age % 20 == 0) {
             log.debug("[Embed] Following host. proj={} bodyYaw={} worldYaw={} pos={}",
@@ -167,4 +177,99 @@ public final class EmbeddingEffect {
         double z = v.x * sin + v.z * cos;
         return new Vec3d(x, v.y, z);
     }
+
+    // Per-entity bleed manager with synchronized 30-tick cycles
+    static final class BleedManager {
+        // Weakly key by entity to avoid leaks across deaths/unloads
+        private static final java.util.Map<LivingEntity, BleedState> STATES = new java.util.WeakHashMap<>();
+
+        static void register(LivingEntity host, long worldTime, ThrownItemEntity proj) {
+            BleedState st = STATES.get(host);
+            if (st == null) {
+                st = new BleedState(worldTime);
+                STATES.put(host, st);
+                log.debug("[Bleed] Anchor set for {} at worldTick={}", host.getName().getString(), worldTime);
+            }
+            st.projs.add(proj);
+            log.debug("[Bleed] Added embed for {}. count={}", host.getName().getString(), st.projs.size());
+        }
+
+        static void unregister(LivingEntity host, ThrownItemEntity proj) {
+            BleedState st = STATES.get(host);
+            if (st == null) return;
+            st.projs.remove(proj);
+            if (st.projs.isEmpty()) {
+                STATES.remove(host);
+                log.debug("[Bleed] Cleared bleed state for {} (no more embeds)", host.getName().getString());
+            } else {
+                log.debug("[Bleed] Removed embed for {}. Remaining count={}", host.getName().getString(), st.projs.size());
+            }
+        }
+
+        static void tryApplyBleed(LivingEntity host, long worldTime) {
+            BleedState st = STATES.get(host);
+            if (st == null) return;
+
+            // Cleanup if host is dead
+            if (!host.isAlive()) {
+                STATES.remove(host);
+                log.debug("[Bleed] Host {} died. Removing bleed state.", host.getName().getString());
+                return;
+            }
+
+            long delta = worldTime - st.anchorTick;
+            if (delta < bleedIntervalTicks) return;                // First bleed exactly at anchor + interval
+            if (delta % bleedIntervalTicks != 0) return;           // Must align to the 30 tick cycle
+
+            // Ensure only one application in this world tick
+            if (st.lastAppliedTick == worldTime) return;
+            st.lastAppliedTick = worldTime;
+
+            // Compute number of active embedded projectiles
+            int activeCount = 0;
+            for (ThrownItemEntity p : st.projs) {
+                if (p != null && !p.isRemoved() && p.isEmbedded()) {
+                    activeCount++;
+                }
+            }
+            if (activeCount <= 0) {
+                STATES.remove(host);
+                return;
+            }
+
+            float total = bleedDamage * activeCount;
+
+            // Apply generic damage (respects armor/enchantments)
+            net.minecraft.server.world.ServerWorld sw = (net.minecraft.server.world.ServerWorld) host.getWorld();
+            host.damage(sw, sw.getDamageSources().generic(), total);
+
+            // Send trickle particles for every currently embedded projectile
+            for (ThrownItemEntity p : st.projs) {
+                if (p == null || p.isRemoved() || !p.isEmbedded()) continue;
+                net.minecraft.util.math.Vec3d pos = p.getPos();
+
+                for (net.minecraft.server.network.ServerPlayerEntity player : sw.getServer().getPlayerManager().getPlayerList()) {
+                    if (player.getWorld() == sw && player.squaredDistanceTo(pos) < 4096) { // 64 blocks
+                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                                player, new NetworkHelper.BleedParticlePacket(pos));
+                    }
+                }
+            }
+
+            // DEBUG
+            log.debug("[Bleed] Applied {} bleed to {} at tick {} (embeds={}, anchor={})",
+                    total, host.getName().getString(), worldTime, activeCount, st.anchorTick);
+        }
+
+        private static final class BleedState {
+            final long anchorTick;
+            long lastAppliedTick = Long.MIN_VALUE;
+            final java.util.Set<ThrownItemEntity> projs = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+            BleedState(long anchorTick) {
+                this.anchorTick = anchorTick;
+            }
+        }
+    }
+
 }
