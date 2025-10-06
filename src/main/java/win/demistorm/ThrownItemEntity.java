@@ -363,7 +363,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     }
 
     // Checks the attack damage of a given item
-    private static float stackBaseDamage(ItemStack stack) {
+    public static float stackBaseDamage(ItemStack stack) {
         final float[] totalBonus = {0f};
 
         stack.applyAttributeModifiers(EquipmentSlot.MAINHAND, (attrEntry, modifier) -> {

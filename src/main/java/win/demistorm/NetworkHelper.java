@@ -15,6 +15,8 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 
+import static win.demistorm.VRThrowingExtensions.log;
+
 // Handles spawning and launching the thrown item
 public final class NetworkHelper {
 
@@ -203,11 +205,25 @@ public final class NetworkHelper {
         // Launches/spawns the entity
         player.getWorld().spawnEntity(proj);
 
-        // Play throw sound
-        if (!player.getWorld().isClient()) {
-            player.getWorld().playSound(null, player.getBlockPos(),
-                    SoundEvents.ENTITY_WITCH_THROW, SoundCategory.PLAYERS,
-                    0.6f, 1.05f);
+        // Check item attack damage to determine which sound to play
+        float attackDamage = ThrownItemEntity.stackBaseDamage(heldStack);
+        log.debug("[Network] Thrown item attack damage = {}", attackDamage);
+
+        // Check item damage
+        if (attackDamage <= 1.0F) {
+            // Play throw sound
+            if (!player.getWorld().isClient()) {
+                player.getWorld().playSound(null, player.getBlockPos(),
+                        SoundEvents.ENTITY_WITCH_THROW, SoundCategory.PLAYERS,
+                        0.6f, 1.05f);
+            }
+        } else {
+            // Play weapon/tool throw sound
+            if (!player.getWorld().isClient()) {
+                player.getWorld().playSound(null, player.getBlockPos(),
+                        SoundEvents.ITEM_TRIDENT_THROW.value(), SoundCategory.PLAYERS,
+                        0.6f, 1.33f);
+            }
         }
 
         // Remove items from player's hand
