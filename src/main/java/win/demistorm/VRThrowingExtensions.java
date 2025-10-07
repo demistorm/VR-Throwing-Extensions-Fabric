@@ -23,7 +23,7 @@ public class VRThrowingExtensions implements ModInitializer {
 	public static EntityType<ThrownProjectileEntity> THROWN_ITEM_TYPE;
 
 	// DEBUG mode on/off
-	public static final boolean debugMode = true;
+	public static final boolean debugMode = false;
 
 	static {
 		Configurator.setLevel(MOD_ID, debugMode ? Level.DEBUG : Level.INFO);
