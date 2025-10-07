@@ -1,4 +1,4 @@
-package win.demistorm;
+package win.demistorm.network;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -14,6 +14,8 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
+import win.demistorm.ModCompat;
+import win.demistorm.ThrownProjectileEntity;
 
 import static win.demistorm.VRThrowingExtensions.log;
 
@@ -189,7 +191,7 @@ public final class NetworkHelper {
         if (heldStack.isEmpty() || ModCompat.throwingDisabled(heldStack)) return;
 
         // Create projectile with the correct stack size
-        ThrownItemEntity proj = new ThrownItemEntity(
+        ThrownProjectileEntity proj = new ThrownProjectileEntity(
                 player.getWorld(), player, heldStack, packet.wholeStack());
 
         proj.setPosition(packet.pos());
@@ -206,7 +208,7 @@ public final class NetworkHelper {
         player.getWorld().spawnEntity(proj);
 
         // Check item attack damage to determine which sound to play
-        float attackDamage = ThrownItemEntity.stackBaseDamage(heldStack);
+        float attackDamage = ThrownProjectileEntity.stackBaseDamage(heldStack);
         log.debug("[Network] Thrown item attack damage = {}", attackDamage);
 
         // Check item damage
@@ -245,7 +247,7 @@ public final class NetworkHelper {
         ServerWorld world = (ServerWorld) player.getWorld();
         Entity entity = world.getEntityById(packet.entityId());
 
-        if (!(entity instanceof ThrownItemEntity projectile)) return;
+        if (!(entity instanceof ThrownProjectileEntity projectile)) return;
 
         if (packet.startCatch()) {
             projectile.startCatch();
@@ -261,7 +263,7 @@ public final class NetworkHelper {
         ServerWorld world = (ServerWorld) player.getWorld();
         Entity entity = world.getEntityById(packet.entityId());
 
-        if (!(entity instanceof ThrownItemEntity projectile)) return;
+        if (!(entity instanceof ThrownProjectileEntity projectile)) return;
         if (!projectile.isCatching()) return;
 
         // Update projectile velocity for magnetism effect
@@ -278,7 +280,7 @@ public final class NetworkHelper {
         ServerWorld world = (ServerWorld) player.getWorld();
         Entity entity = world.getEntityById(packet.entityId());
 
-        if (!(entity instanceof ThrownItemEntity projectile)) return;
+        if (!(entity instanceof ThrownProjectileEntity projectile)) return;
         if (!projectile.isCatching()) return;
 
         // Check that player's main hand is still empty

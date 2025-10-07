@@ -1,4 +1,4 @@
-package win.demistorm;
+package win.demistorm.effects;
 
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
@@ -7,6 +7,9 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import win.demistorm.ThrownProjectileEntity;
+import win.demistorm.VRThrowingExtensions;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -53,7 +56,7 @@ public final class BoomerangEffect {
     }
 
     // Starts the boomerang-style return path
-    public static void startBounce(ThrownItemEntity proj) {
+    public static void startBounce(ThrownProjectileEntity proj) {
         proj.hasBounced = true;
         proj.bounceActive = true;
 
@@ -127,7 +130,7 @@ public final class BoomerangEffect {
     }
 
     // Returns true when return is finished
-    public static boolean tickReturn(ThrownItemEntity proj) {
+    public static boolean tickReturn(ThrownProjectileEntity proj) {
         Vec3d currentPos = proj.getPos();
         Vec3d toOrigin = proj.originalThrowPos.subtract(currentPos);
         double distSq = toOrigin.lengthSquared();

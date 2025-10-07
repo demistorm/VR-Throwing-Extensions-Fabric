@@ -22,7 +22,7 @@
 			"win.demistorm.VRThrowingExtensionsClient"
 		],
 		"modmenu": [
-			"win.demistorm.ModMenuIntegration"
+			"win.demistorm.config.ModMenuIntegration"
 		]
 	},
 	"depends": {

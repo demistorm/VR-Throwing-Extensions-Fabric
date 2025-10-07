@@ -18,7 +18,7 @@ import net.minecraft.util.math.Vec3d;
 
 // Renders the thrown item projectile for the client
 @Environment(EnvType.CLIENT)
-public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownItemRenderer.ThrownItemRenderState> {
+public class ThrownItemRenderer extends EntityRenderer<ThrownProjectileEntity, ThrownItemRenderer.ThrownItemRenderState> {
     private final ItemRenderer itemRenderer;
     private final float scale;
 
@@ -35,7 +35,7 @@ public class ThrownItemRenderer extends EntityRenderer<ThrownItemEntity, ThrownI
     }
 
     @Override
-    public void updateRenderState(ThrownItemEntity entity, ThrownItemRenderState state, float tickDelta) {
+    public void updateRenderState(ThrownProjectileEntity entity, ThrownItemRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
         state.itemStack = entity.getStack();
         state.velocity = entity.getVelocity();

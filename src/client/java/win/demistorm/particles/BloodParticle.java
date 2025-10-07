@@ -1,4 +1,4 @@
-package win.demistorm;
+package win.demistorm.particles;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -11,11 +11,13 @@ import net.minecraft.particle.ItemStackParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import win.demistorm.config.ClientOnlyConfig;
+import win.demistorm.network.NetworkHelper;
 
 import java.util.concurrent.ThreadLocalRandom;
 
 @Environment(EnvType.CLIENT)
-public final class ClientBloodParticleHandler {
+public final class BloodParticle {
 
     // Register client packet handler
     public static void init() {
@@ -162,5 +164,5 @@ public final class ClientBloodParticleHandler {
 
     private record Basis(Vec3d f, Vec3d u, Vec3d v) {}
 
-    private ClientBloodParticleHandler() {}
+    private BloodParticle() {}
 }

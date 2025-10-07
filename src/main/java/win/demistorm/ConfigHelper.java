@@ -101,13 +101,13 @@ public final class ConfigHelper {
     }
 
     // Hears that the client recieved the config
-    static void clientReceivedRemote(String json) {
+    public static void clientReceivedRemote(String json) {
         copyInto(fromJson(json), ACTIVE);
         VRThrowingExtensions.log.debug("Received remote config: {}", json);
     }
 
     // Tells when the client disconnects
-    static void clientDisconnected() {
+     public static void clientDisconnected() {
         copyInto(CLIENT, ACTIVE);
     }
 }

@@ -3,6 +3,8 @@ package win.demistorm;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionfc;
+import win.demistorm.network.NetworkHelper;
+
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Forwards client network information to NetworkHelper
@@ -14,12 +16,12 @@ public final class ClientNetworkHelper {
         ClientPlayNetworking.send(new NetworkHelper.ThrowPacket(pos, velocity, wholeStack, rollDeg));
     }
 
-    public static void sendCatchToServer(ThrownItemEntity entity, boolean startCatch) {
+    public static void sendCatchToServer(ThrownProjectileEntity entity, boolean startCatch) {
         log.debug("ClientNetworkHelper: Sending catch start/cancel. entity={} start={}", entity.getId(), startCatch);
         ClientPlayNetworking.send(new NetworkHelper.CatchPacket(entity.getId(), startCatch));
     }
 
-    public static void sendCatchUpdateToServer(ThrownItemEntity entity, Vec3d newVelocity, Quaternionfc handRotation) {
+    public static void sendCatchUpdateToServer(ThrownProjectileEntity entity, Vec3d newVelocity, Quaternionfc handRotation) {
         // Calculate hand roll from quaternionfc (same logic as throwing)
         org.joml.Vector3f fwd = new org.joml.Vector3f(0, 0, -1).rotate(handRotation).normalize();
         org.joml.Vector3f up  = new org.joml.Vector3f(0, 1,  0).rotate(handRotation).normalize();
@@ -36,7 +38,7 @@ public final class ClientNetworkHelper {
         ClientPlayNetworking.send(new NetworkHelper.CatchUpdatePacket(entity.getId(), newVelocity, rollDeg));
     }
 
-    public static void sendCatchCompleteToServer(ThrownItemEntity entity) {
+    public static void sendCatchCompleteToServer(ThrownProjectileEntity entity) {
         log.debug("ClientNetworkHelper: Sending catch complete. entity={}", entity.getId());
         ClientPlayNetworking.send(new NetworkHelper.CatchCompletePacket(entity.getId()));
     }

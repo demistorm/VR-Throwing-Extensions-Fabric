@@ -1,7 +1,9 @@
-package win.demistorm;
+package win.demistorm.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import win.demistorm.VRThrowingExtensions;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

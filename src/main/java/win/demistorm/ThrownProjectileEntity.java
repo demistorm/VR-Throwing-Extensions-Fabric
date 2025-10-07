@@ -23,11 +23,14 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import win.demistorm.effects.BoomerangEffect;
+import win.demistorm.effects.EmbeddingEffect;
+import win.demistorm.network.NetworkHelper;
 
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Projectile that carries the player's held item, deals damage, and drops the item after collision
-public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.ThrownItemEntity {
+public class ThrownProjectileEntity extends net.minecraft.entity.projectile.thrown.ThrownItemEntity {
     private int stackSize = 1;
     public boolean catching = false;                // Whether this projectile is being caught
     private Vec3d storedVelocity = Vec3d.ZERO;      // Stores velocity before catching
@@ -35,9 +38,9 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     // Boomerang state tracking
     private int bounceReturnTicks = 0;              // Time spent in return flight
     private boolean reachedOriginOnce = false;      // Prevents oscillation at origin
-    protected Vec3d originalThrowPos = Vec3d.ZERO;  // Saved when the entity is created on the server
-    protected boolean hasBounced = false;           // Whether the first hit happened
-    protected boolean bounceActive = false;         // If the boomerang is active
+    public Vec3d originalThrowPos = Vec3d.ZERO;  // Saved when the entity is created on the server
+    public boolean hasBounced = false;           // Whether the first hit happened
+    public boolean bounceActive = false;         // If the boomerang is active
     public Vec3d bounceCurveOffset = Vec3d.ZERO;
     public Vec3d bouncePlaneNormal = Vec3d.ZERO;
     public double bounceArcMag = 0.0;
@@ -51,37 +54,37 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
     private float embeddedLocalYaw = 0f;            // Yaw relative to host yaw
     private float embeddedLocalPitch = 0f;          // Pitch relative to host pitch
 
-    public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, World world) {
+    public ThrownProjectileEntity(EntityType<? extends ThrownProjectileEntity> type, World world) {
         super(type, world);
     }
 
     private static final TrackedData<Float> HAND_ROLL =
-            DataTracker.registerData(ThrownItemEntity.class,
+            DataTracker.registerData(ThrownProjectileEntity.class,
                     TrackedDataHandlerRegistry.FLOAT);
     private static final TrackedData<Boolean> IS_CATCHING =
-            DataTracker.registerData(ThrownItemEntity.class,
+            DataTracker.registerData(ThrownProjectileEntity.class,
                     TrackedDataHandlerRegistry.BOOLEAN);
 
     // Tracked data for client sync
     private static final TrackedData<Boolean> BOUNCE_ACTIVE =
-            DataTracker.registerData(ThrownItemEntity.class,
+            DataTracker.registerData(ThrownProjectileEntity.class,
                     TrackedDataHandlerRegistry.BOOLEAN);
 
     // Embedding tracked data (so clients can render properly)
     private static final TrackedData<Boolean> IS_EMBEDDED =
-            DataTracker.registerData(ThrownItemEntity.class,
+            DataTracker.registerData(ThrownProjectileEntity.class,
                     TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Float> EMBED_YAW =
-            DataTracker.registerData(ThrownItemEntity.class,
+            DataTracker.registerData(ThrownProjectileEntity.class,
                     TrackedDataHandlerRegistry.FLOAT);
     private static final TrackedData<Float> EMBED_PITCH =
-            DataTracker.registerData(ThrownItemEntity.class,
+            DataTracker.registerData(ThrownProjectileEntity.class,
                     TrackedDataHandlerRegistry.FLOAT);
     private static final TrackedData<Float> EMBED_ROLL =
-            DataTracker.registerData(ThrownItemEntity.class,
+            DataTracker.registerData(ThrownProjectileEntity.class,
                     TrackedDataHandlerRegistry.FLOAT);
     private static final TrackedData<Float> EMBED_TILT =
-            DataTracker.registerData(ThrownItemEntity.class,
+            DataTracker.registerData(ThrownProjectileEntity.class,
                     TrackedDataHandlerRegistry.FLOAT);
 
     // Handles the rotation of the arm and bounce state
@@ -145,7 +148,7 @@ public class ThrownItemEntity extends net.minecraft.entity.projectile.thrown.Thr
         return this.stackSize;
     }
 
-    public ThrownItemEntity(World world, LivingEntity owner, ItemStack carried, boolean isWholeStack) {
+    public ThrownProjectileEntity(World world, LivingEntity owner, ItemStack carried, boolean isWholeStack) {
         super(VRThrowingExtensions.THROWN_ITEM_TYPE, world);
         setOwner(owner);
         setItem(carried.copyWithCount(1)); // Visually only throws 1 model

@@ -1,4 +1,4 @@
-package win.demistorm;
+package win.demistorm.effects;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
@@ -8,6 +8,8 @@ import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Box;
+import win.demistorm.network.NetworkHelper;
+import win.demistorm.ThrownProjectileEntity;
 
 import static win.demistorm.VRThrowingExtensions.log;
 
@@ -29,7 +31,7 @@ public final class EmbeddingEffect {
     private EmbeddingEffect() {}
 
     // Called on first entity hit to start embedding if conditions pass
-    public static void startEmbedding(ThrownItemEntity proj, EntityHitResult hit) {
+    public static void startEmbedding(ThrownProjectileEntity proj, EntityHitResult hit) {
         if (proj.getWorld().isClient()) return;
         Entity target = hit.getEntity();
         if (!(target instanceof LivingEntity living)) {
@@ -98,7 +100,7 @@ public final class EmbeddingEffect {
 
     // Per tick embed tracker
     // Keeps it stuck at the original hit point on the target entity and animates roll toward a stable angle.
-    public static void tickEmbedded(ThrownItemEntity proj) {
+    public static void tickEmbedded(ThrownProjectileEntity proj) {
         if (!proj.isEmbedded()) return;
 
         if (proj.getWorld().isClient()) {
@@ -160,7 +162,7 @@ public final class EmbeddingEffect {
     }
 
     // When catching starts, release from embedding
-    public static void releaseEmbedding(ThrownItemEntity proj) {
+    public static void releaseEmbedding(ThrownProjectileEntity proj) {
         if (!proj.isEmbedded()) return;
         proj.clearEmbedding();
         proj.setNoGravity(true);
@@ -179,11 +181,11 @@ public final class EmbeddingEffect {
     }
 
     // Per-entity bleed manager with synchronized 30-tick cycles
-    static final class BleedManager {
+    public static final class BleedManager {
         // Weakly key by entity to avoid leaks across deaths/unloads
         private static final java.util.Map<LivingEntity, BleedState> STATES = new java.util.WeakHashMap<>();
 
-        static void register(LivingEntity host, long worldTime, ThrownItemEntity proj) {
+        static void register(LivingEntity host, long worldTime, ThrownProjectileEntity proj) {
             BleedState st = STATES.get(host);
             if (st == null) {
                 st = new BleedState(worldTime);
@@ -194,7 +196,7 @@ public final class EmbeddingEffect {
             log.debug("[Bleed] Added embed for {}. count={}", host.getName().getString(), st.projs.size());
         }
 
-        static void unregister(LivingEntity host, ThrownItemEntity proj) {
+        public static void unregister(LivingEntity host, ThrownProjectileEntity proj) {
             BleedState st = STATES.get(host);
             if (st == null) return;
             st.projs.remove(proj);
@@ -227,7 +229,7 @@ public final class EmbeddingEffect {
 
             // Compute number of active embedded projectiles
             int activeCount = 0;
-            for (ThrownItemEntity p : st.projs) {
+            for (ThrownProjectileEntity p : st.projs) {
                 if (p != null && !p.isRemoved() && p.isEmbedded()) {
                     activeCount++;
                 }
@@ -244,7 +246,7 @@ public final class EmbeddingEffect {
             host.damage(sw, sw.getDamageSources().generic(), total);
 
             // Send trickle particles for every currently embedded projectile
-            for (ThrownItemEntity p : st.projs) {
+            for (ThrownProjectileEntity p : st.projs) {
                 if (p == null || p.isRemoved() || !p.isEmbedded()) continue;
                 net.minecraft.util.math.Vec3d pos = p.getPos();
 
@@ -264,7 +266,7 @@ public final class EmbeddingEffect {
         private static final class BleedState {
             final long anchorTick;
             long lastAppliedTick = Long.MIN_VALUE;
-            final java.util.Set<ThrownItemEntity> projs = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+            final java.util.Set<ThrownProjectileEntity> projs = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
             BleedState(long anchorTick) {
                 this.anchorTick = anchorTick;

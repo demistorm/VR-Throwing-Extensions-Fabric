@@ -1,4 +1,4 @@
-package win.demistorm;
+package win.demistorm.particles;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -10,11 +10,13 @@ import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ItemStackParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.Vec3d;
+import win.demistorm.config.ClientOnlyConfig;
+import win.demistorm.network.NetworkHelper;
 
 import java.util.concurrent.ThreadLocalRandom;
 
 @Environment(EnvType.CLIENT)
-public final class ClientBleedingParticleHandler {
+public final class BleedingParticle {
 
     public static void init() {
         ClientPlayNetworking.registerGlobalReceiver(
@@ -89,5 +91,5 @@ public final class ClientBleedingParticleHandler {
         return (ri << 16) | (gi << 8) | bi;
     }
 
-    private ClientBleedingParticleHandler() {}
+    private BleedingParticle() {}
 }

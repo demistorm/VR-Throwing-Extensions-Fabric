@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import win.demistorm.network.NetworkHelper;
 
 // Common side initialization
 public class VRThrowingExtensions implements ModInitializer {
@@ -19,7 +20,7 @@ public class VRThrowingExtensions implements ModInitializer {
 	public static final String MOD_ID = "vr-throwing-extensions";
 	public static final Logger log = LoggerFactory.getLogger(MOD_ID);
 
-	public static EntityType<ThrownItemEntity> THROWN_ITEM_TYPE;
+	public static EntityType<ThrownProjectileEntity> THROWN_ITEM_TYPE;
 
 	// DEBUG mode on/off
 	public static final boolean debugMode = true;
@@ -39,7 +40,7 @@ public class VRThrowingExtensions implements ModInitializer {
 		THROWN_ITEM_TYPE = Registry.register(
 				Registries.ENTITY_TYPE,
 				entityTypeKey.getValue(),
-				EntityType.Builder.<ThrownItemEntity>create(ThrownItemEntity::new, SpawnGroup.MISC)
+				EntityType.Builder.<ThrownProjectileEntity>create(ThrownProjectileEntity::new, SpawnGroup.MISC)
 						.dimensions(0.25f, 0.25f)
 						.maxTrackingRange(64)
 						.trackingTickInterval(5) // Update every 5 ticks = 4 times per second

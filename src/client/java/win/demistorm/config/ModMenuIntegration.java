@@ -1,4 +1,4 @@
-package win.demistorm;
+package win.demistorm.config;
 
 import com.terraformersmc.modmenu.api.ModMenuApi;
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
@@ -7,6 +7,8 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
+import win.demistorm.ConfigHelper;
+import win.demistorm.WeaponEffectType;
 
 // Mod Menu config integration, class is pretty self-explanatory
 public final class ModMenuIntegration implements ModMenuApi {

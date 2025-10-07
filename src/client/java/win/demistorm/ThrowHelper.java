@@ -29,7 +29,7 @@ public class ThrowHelper {
     private static boolean cancelBreaking  = false;          // Cancels breaking after a certain speed
     private static Vec3d relativeStartPoint = Vec3d.ZERO;    // Hand position relative to player when starting
     private static ItemStack heldItem   = ItemStack.EMPTY;   // Checks what item is in hand
-    private static ThrownItemEntity targetProjectile = null; // The projectile being caught
+    private static ThrownProjectileEntity targetProjectile = null; // The projectile being caught
     private static int ticksHeld  = 0;                       // How long trigger is pressed
     private static int catchTicksHeld = 0;                   // How long trigger is pressed for catching
 
@@ -254,7 +254,7 @@ public class ThrowHelper {
 
         // When attack is pressed and not already catching, look for projectiles
         if (!catchActive && attackPressed) {
-            ThrownItemEntity nearestProjectile = findNearestProjectile(player, handPos);
+            ThrownProjectileEntity nearestProjectile = findNearestProjectile(player, handPos);
             if (nearestProjectile != null) {
                 startCatch(nearestProjectile);
                 log.debug("[VR Catch] Started catching projectile...");
@@ -294,10 +294,10 @@ public class ThrowHelper {
     }
 
     // Finds the nearest thrown item within catch range
-    private static ThrownItemEntity findNearestProjectile(ClientPlayerEntity player, Vec3d handPos) {
+    private static ThrownProjectileEntity findNearestProjectile(ClientPlayerEntity player, Vec3d handPos) {
         Box searchBox = Box.of(handPos, catchMaxDistance * 2, catchMaxDistance * 2, catchMaxDistance * 2);
 
-        return player.getWorld().getEntitiesByClass(ThrownItemEntity.class, searchBox, entity -> {
+        return player.getWorld().getEntitiesByClass(ThrownProjectileEntity.class, searchBox, entity -> {
                     if (entity.isRemoved()) return false;
                     double distance = entity.getPos().distanceTo(handPos);
                     return distance <= catchMaxDistance;
@@ -307,7 +307,7 @@ public class ThrowHelper {
     }
 
     // Starts catching the target projectile
-    private static void startCatch(ThrownItemEntity projectile) {
+    private static void startCatch(ThrownProjectileEntity projectile) {
         catchActive = true;
         targetProjectile = projectile;
         catchTicksHeld = 0;

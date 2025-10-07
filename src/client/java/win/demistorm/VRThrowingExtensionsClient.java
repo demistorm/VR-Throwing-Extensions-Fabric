@@ -7,6 +7,10 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.util.ActionResult;
 import org.vivecraft.api.client.VRClientAPI;
+import win.demistorm.config.ClientConfigHelper;
+import win.demistorm.particles.BleedingParticle;
+import win.demistorm.particles.BloodParticle;
+
 import static win.demistorm.VRThrowingExtensions.log;
 
 // Client mod initializer
@@ -18,8 +22,8 @@ public class VRThrowingExtensionsClient implements ClientModInitializer {
 		// Load config
 		ClientConfigHelper.init();
 		// Initialize blood effects
-		ClientBloodParticleHandler.init();
-		ClientBleedingParticleHandler.init();
+		BloodParticle.init();
+		BleedingParticle.init();
 		// Register the throwing tracker (replaces init and client tick event)
 		registerTracker();
 		// Well you can see what this does, it's right under here

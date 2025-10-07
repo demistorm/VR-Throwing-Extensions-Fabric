@@ -1,9 +1,10 @@
-package win.demistorm;
+package win.demistorm.config;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import win.demistorm.ConfigHelper;
 
 // Bridges the server config networking wiht the client
 @Environment(EnvType.CLIENT)
