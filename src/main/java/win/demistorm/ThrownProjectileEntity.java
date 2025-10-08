@@ -34,23 +34,23 @@ public class ThrownProjectileEntity extends net.minecraft.entity.projectile.thro
     private int stackSize = 1;
     public boolean catching = false;                // Whether this projectile is being caught
     private Vec3d storedVelocity = Vec3d.ZERO;      // Stores velocity before catching
+    private int immunityTicks = 20;            // Prevents hitting the thrower immediately
 
     // Boomerang state tracking
     private int bounceReturnTicks = 0;              // Time spent in return flight
     private boolean reachedOriginOnce = false;      // Prevents oscillation at origin
-    public Vec3d originalThrowPos = Vec3d.ZERO;  // Saved when the entity is created on the server
-    public boolean hasBounced = false;           // Whether the first hit happened
-    public boolean bounceActive = false;         // If the boomerang is active
+    public Vec3d originalThrowPos = Vec3d.ZERO;     // Saved when the entity is created on the server
+    public boolean hasBounced = false;              // Whether the first hit happened
+    public boolean bounceActive = false;            // If the boomerang is active
     public Vec3d bounceCurveOffset = Vec3d.ZERO;
     public Vec3d bouncePlaneNormal = Vec3d.ZERO;
     public double bounceArcMag = 0.0;
-    public boolean bounceInverse = true;           // Inverts the bounce direction
+    public boolean bounceInverse = true;            // Inverts the bounce direction
 
     // Embedding state tracking
     private LivingEntity embeddedTarget = null;     // Host entity we're embedded in
     private Vec3d embeddedOffset = Vec3d.ZERO;      // LOCAL offset (relative to host body yaw)
     private boolean alreadyDropped = false;         // Prevent duplicate drops via removal
-
     private float embeddedLocalYaw = 0f;            // Yaw relative to host yaw
     private float embeddedLocalPitch = 0f;          // Pitch relative to host pitch
 
@@ -161,6 +161,11 @@ public class ThrownProjectileEntity extends net.minecraft.entity.projectile.thro
     public void tick() {
         super.tick();
 
+        // Start immunity timer
+        if (immunityTicks > 0) {
+            immunityTicks--;
+        }
+
         // Checks if projectile is embedded
         if (isEmbedded() && !isCatching()) {
             EmbeddingEffect.tickEmbedded(this);
@@ -236,6 +241,19 @@ public class ThrownProjectileEntity extends net.minecraft.entity.projectile.thro
     protected void onCollision(HitResult hit) {
         // Ignore while being caught
         if (isCatching()) return;
+
+        // Check spawn immunity for player hits
+        if (immunityTicks > 0 && hit.getType() == HitResult.Type.ENTITY) {
+            EntityHitResult entityHit = (EntityHitResult) hit;
+            Entity target = entityHit.getEntity();
+
+            // Only ignore collision with the thrower during immunity
+            if (target == getOwner()) {
+                log.debug("[VR Throw] Projectile {} ignoring owner collision (immunity: {} ticks remaining)",
+                        this.getId(), immunityTicks);
+                return;
+            }
+        }
 
         // If the thrown item is mid-boomerang, have it drop on hit
         if (bounceActive || hasBounced) {
@@ -378,6 +396,12 @@ public class ThrownProjectileEntity extends net.minecraft.entity.projectile.thro
         return 1.0F + totalBonus[0]; // 1.0 base punch + item’s modifier
     }
 
+    // Clears spawn immunity
+    public void clearSpawnImmunity() {
+        this.immunityTicks = 0;
+        log.debug("[VR Throw] Projectile {} spawn immunity cleared", this.getId());
+    }
+
     // Placeholder item for ThrownItemEntity's sake
     @Override
     protected Item getDefaultItem() {
@@ -465,10 +489,12 @@ public class ThrownProjectileEntity extends net.minecraft.entity.projectile.thro
 
     // Drops the item (if not already dropped) and discards this projectile
     public void dropAndDiscard() {
-        // NEW: Ensure bleed is unregistered if we were embedded
+        // Ensure bleed is unregistered if we were embedded
         if (isEmbedded()) {
             clearEmbedding();
         }
+
+        clearSpawnImmunity();
 
         if (alreadyDropped) {
             // Prevent double-drop

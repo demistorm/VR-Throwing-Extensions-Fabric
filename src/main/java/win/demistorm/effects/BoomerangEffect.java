@@ -60,6 +60,9 @@ public final class BoomerangEffect {
         proj.hasBounced = true;
         proj.bounceActive = true;
 
+        // Clear thrower immunity on bounce so that the player can be hit again
+        proj.clearSpawnImmunity();
+
         Vec3d currentPos = proj.getPos();
         Vec3d toOrigin = proj.originalThrowPos.subtract(currentPos);
         double distanceToOrigin = toOrigin.length();
