@@ -1,6 +1,8 @@
 # VR Throwing Extensions-Fabric
 Fabric mod allowing players to throw and catch any item!
 
+## **Outdated**: I have moved to a multiloader setup and will be developing on that further [https://github.com/demistorm/VR-Throwing-Extensions]
+
 Simply hold the attack/destroy keybind, make a throwing motion, and release!
 Hold the place/use keybind at the same time to throw the whole stack. 
 
